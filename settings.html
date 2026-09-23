@@ -1047,10 +1047,10 @@
         <div class="row-item">
           <div class="row-info">
             <div class="row-title">Interface Theme</div>
-            <div class="row-desc">Engineered for OLED displays with zero backlight bleed and high text contrast.</div>
+            <div class="row-desc">Engineered for OLED displays with zero backlight bleed and high text contrast. Additional themes are not available yet.</div>
           </div>
           <div class="row-control">
-            <select class="custom-select" id="select-theme">
+            <select class="custom-select" id="select-theme" disabled title="Additional themes are not available yet">
               <option value="pitch-black">Pitch Black OLED (Default)</option>
               <option value="slate">Deep Slate</option>
               <option value="frosted">Frosted Glass</option>
@@ -1116,7 +1116,7 @@
           </div>
           <div class="row-control">
             <label class="toggle">
-              <input type="checkbox" checked onchange="showToast('Password prompt preference saved')">
+              <input type="checkbox" id="toggle-save-passwords" checked onchange="toggleOfferSavePasswords(this.checked)">
               <span class="slider"></span>
             </label>
           </div>
@@ -1160,7 +1160,7 @@
             <div class="row-desc">Ultra-efficient process architecture consuming ~30-50 MB RAM at idle.</div>
           </div>
           <div class="row-control">
-            <span style="font-size: 12px; color: var(--accent-green); font-family: monospace;">~38.4 MB RAM</span>
+            <span id="ram-usage" style="font-size: 12px; color: var(--accent-green); font-family: monospace;">–</span>
           </div>
         </div>
       </div>
@@ -1237,23 +1237,34 @@
       card.innerHTML = `
         <div class="workspace-header">
           <div class="workspace-identity">
-            <div class="workspace-dot" style="background: ${p.colorHex}; box-shadow: 0 0 8px ${p.colorHex}88;"></div>
+            <div class="workspace-dot" style="background: ${safeColor(p.colorHex)}; box-shadow: 0 0 8px ${safeColor(p.colorHex)}88;"></div>
             <div class="workspace-name">${escapeHTML(p.name)}</div>
           </div>
           ${isActive ? '<span class="active-badge">Active</span>' : ''}
         </div>
         <div class="workspace-stats">${p.tabCount || 0} open tab${p.tabCount === 1 ? '' : 's'}</div>
         <div class="workspace-actions">
-          ${!isActive ? `<button class="btn" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" onclick="switchWorkspace('${p.id}')">Switch</button>` : ''}
-          ${!p.isDefault && !isActive ? `<button class="btn btn-danger" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" onclick="deleteWorkspace('${p.id}')">Delete</button>` : ''}
+          ${!isActive ? `<button class="btn" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" data-action="switch" data-id="${escapeHTML(p.id)}">Switch</button>` : ''}
+          ${!p.isDefault && !isActive ? `<button class="btn btn-danger" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" data-action="delete" data-id="${escapeHTML(p.id)}">Delete</button>` : ''}
         </div>
       `;
+      card.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-id');
+          if (btn.getAttribute('data-action') === 'switch') switchWorkspace(id);
+          else deleteWorkspace(id);
+        });
+      });
       container.appendChild(card);
     });
   }
 
+  function safeColor(hex) {
+    return /^#[0-9a-fA-F]{6}$/.test(hex || '') ? hex : '#FFFFFF';
+  }
+
   function escapeHTML(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function selectColor(el) {
@@ -1279,12 +1290,12 @@
   }
 
   function updateStartup(val) {
-    sendToSwift('setStartup', { startup: val });
+    sendToSwift('setStartup', { mode: val });
     showToast('Startup preference saved');
   }
 
   function toggleBookmarksBar(checked) {
-    sendToSwift('setShowBookmarksBar', { show: checked });
+    sendToSwift('setShowBookmarksBar', { enabled: checked });
     showToast(checked ? 'Bookmarks bar shown' : 'Bookmarks bar hidden');
   }
 
@@ -1294,8 +1305,13 @@
   }
 
   function toggleNewsTicker(checked) {
-    sendToSwift('setNewsTickerEnabled', { enabled: checked });
+    sendToSwift('setNewsEnabled', { enabled: checked });
     showToast(checked ? 'News ticker enabled' : 'News ticker hidden');
+  }
+
+  function toggleOfferSavePasswords(checked) {
+    sendToSwift('setOfferSavePasswords', { enabled: checked });
+    showToast(checked ? 'Onyx will offer to save passwords' : 'Password save prompts off');
   }
 
   function openDownloadsFolder() {
@@ -1312,7 +1328,7 @@
   }
 
   function switchWorkspace(id) {
-    sendToSwift('switchWorkspace', { profileId: id });
+    sendToSwift('switchWorkspace', { id: id });
     showToast('Switched workspace');
   }
 
@@ -1323,43 +1339,51 @@
       input.focus();
       return;
     }
-    sendToSwift('createWorkspace', { name: name, color: selectedNewColor });
+    sendToSwift('createWorkspace', { name: name, colorHex: selectedNewColor });
     input.value = '';
     showToast(`Workspace "${name}" created`);
   }
 
   function deleteWorkspace(id) {
     if (confirm('Are you sure you want to delete this workspace and close its tabs?')) {
-      sendToSwift('deleteWorkspace', { profileId: id });
+      sendToSwift('deleteWorkspace', { id: id });
       showToast('Workspace deleted');
     }
   }
 
-  // Receive settings from Swift
-  window.receiveSettings = function(data) {
+  // Receive settings from Swift (native calls window.renderSettings with the full state)
+  window.renderSettings = function(data) {
     if (!data) return;
     currentSettings = data;
 
+    const setValue = (id, value) => {
+      const el = document.getElementById(id);
+      if (el && value !== undefined) el.value = value;
+    };
+    const setChecked = (id, value) => {
+      const el = document.getElementById(id);
+      if (el && value !== undefined) el.checked = !!value;
+    };
+
     if (data.searchEngine) {
-      const sel = document.getElementById('select-search-engine');
-      if (sel) sel.value = data.searchEngine;
+      setValue('select-search-engine', data.searchEngine);
       localStorage.setItem('onyx_search_engine', data.searchEngine);
     }
+    setValue('select-startup', data.startup);
+    setChecked('toggle-bookmarks', data.showBookmarksBar);
+    setChecked('toggle-adblock', data.adBlockEnabled);
+    setChecked('toggle-news', data.newsEnabled);
+    setChecked('toggle-save-passwords', data.offerSavePasswords);
 
-    if (data.showBookmarksBar !== undefined) {
-      const toggle = document.getElementById('toggle-bookmarks');
-      if (toggle) toggle.checked = !!data.showBookmarksBar;
-    }
-
-    if (data.adBlockEnabled !== undefined) {
-      const toggle = document.getElementById('toggle-adblock');
-      if (toggle) toggle.checked = !!data.adBlockEnabled;
-    }
+    const ram = document.getElementById('ram-usage');
+    if (ram && data.ramUsage) ram.textContent = data.ramUsage;
 
     if (data.profiles && Array.isArray(data.profiles)) {
       renderWorkspaces(data.profiles, data.activeProfileId);
     }
   };
+  // Older name kept for any caller still using it.
+  window.receiveSettings = window.renderSettings;
 
   // Initial load request
   document.addEventListener('DOMContentLoaded', () => {

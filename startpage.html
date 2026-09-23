@@ -304,6 +304,9 @@
   .search-wrapper {
     width: 100%;
     position: relative;
+    /* .fade-in leaves a transform on this and on the sections after it, so each is its own
+       stacking context; without a z-index the later sections paint over the suggestions dropdown. */
+    z-index: 20;
     border-radius: 26px;
     --engine-glow: radial-gradient(
       ellipse 85% 65% at 50% 50%,
@@ -3576,6 +3579,62 @@
   let currentNewsCategory = 'all';
   let isFetchingLiveNews = false;
 
+  // News headlines come from third-party feeds: always escape before inserting as HTML.
+  function escapeHTML(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function safeHttpUrl(url) {
+    try {
+      const u = new URL(String(url || ''));
+      return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Feeds without CORS headers (Google News RSS) are fetched by the native shell for this page.
+  const nativeFeedPending = {};
+  let nativeFeedSeq = 0;
+  function nativeFetchText(url, signal) {
+    const macBridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.onyxFetchFeed;
+    if (macBridge) return macBridge.postMessage({ url: url });
+    if (window.OnyxAndroid && window.OnyxAndroid.fetchFeed) {
+      return new Promise((resolve, reject) => {
+        const id = 'feed' + (++nativeFeedSeq);
+        nativeFeedPending[id] = { resolve, reject };
+        setTimeout(() => {
+          if (nativeFeedPending[id]) {
+            delete nativeFeedPending[id];
+            reject(new Error('timeout'));
+          }
+        }, 6000);
+        window.OnyxAndroid.fetchFeed(url, id);
+      });
+    }
+    return fetch(url, { signal: signal }).then(r => r.text());
+  }
+  window.onOnyxFeedReceived = function(id, text) {
+    const pending = nativeFeedPending[id];
+    if (!pending) return;
+    delete nativeFeedPending[id];
+    if (text == null) pending.reject(new Error('fetch failed'));
+    else pending.resolve(text);
+  };
+
+  // News deck can be switched off from Settings (native pushes this after load).
+  let newsEnabled = true;
+  window.setNewsEnabled = function(enabled) {
+    const wasEnabled = newsEnabled;
+    newsEnabled = !!enabled;
+    const btnNews = document.getElementById('deck-btn-news');
+    if (btnNews) btnNews.style.display = newsEnabled ? '' : 'none';
+    if (!newsEnabled && currentDeckMode === 'news') setDeckMode('workspaces', false);
+    if (newsEnabled && !wasEnabled) fetchLiveNews(false);
+  };
+
   function renderNews(category) {
     currentNewsCategory = category || 'all';
     const container = document.getElementById('news-grid-container');
@@ -3590,16 +3649,16 @@
     });
     
     container.innerHTML = items.slice(0, 3).map(item => `
-      <a class="news-card" data-url="${item.url}" title="${item.headline.replace(/"/g, '&quot;')}" tabindex="0" role="article">
+      <a class="news-card" data-url="${escapeHTML(safeHttpUrl(item.url))}" title="${escapeHTML(item.headline)}" tabindex="0" role="article">
         <div class="news-card-header">
           <div class="news-tag-badge">
-            <span class="news-tag-dot ${item.cat}"></span>
-            <span>${item.catLabel}</span>
+            <span class="news-tag-dot ${escapeHTML(item.cat)}"></span>
+            <span>${escapeHTML(item.catLabel)}</span>
           </div>
-          <span class="news-time-badge">${item.time}</span>
+          <span class="news-time-badge">${escapeHTML(item.time)}</span>
         </div>
         <div class="news-body">
-          <span class="news-headline">${item.headline}</span>
+          <span class="news-headline">${escapeHTML(item.headline)}</span>
         </div>
         <div class="news-footer">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3607,7 +3666,7 @@
             <line x1="2" y1="12" x2="22" y2="12"></line>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
           </svg>
-          <span>${item.source}</span>
+          <span>${escapeHTML(item.source)}</span>
         </div>
       </a>
     `).join('');
@@ -3632,7 +3691,7 @@
   }
 
   async function fetchLiveNews(isManualRefresh = false) {
-    if (isFetchingLiveNews) return;
+    if (!newsEnabled || isFetchingLiveNews) return;
     isFetchingLiveNews = true;
 
     const refreshBtn = document.getElementById('news-refresh-btn');
@@ -3661,7 +3720,7 @@
       const [fpRes, aiRes, bzRes, mktRes, techRes] = await Promise.allSettled([
         fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', fetchOpts).then(r => r.json()),
         fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=AI&numericFilters=points>5&hitsPerPage=12', fetchOpts).then(r => r.json()),
-        fetch('https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en', fetchOpts).then(r => r.text()).catch(() => null),
+        nativeFetchText('https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en', controller.signal).catch(() => null),
         fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=market&numericFilters=points>3&hitsPerPage=10', fetchOpts).then(r => r.json()),
         fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=tech&numericFilters=points>8&hitsPerPage=12', fetchOpts).then(r => r.json())
       ]);
@@ -3862,6 +3921,7 @@
   }
 
   function setDeckMode(mode, animate = true) {
+    if (mode === 'news' && !newsEnabled) mode = 'workspaces';
     const isModeChange = currentDeckMode !== mode;
     currentDeckMode = mode;
     localStorage.setItem('onyx_deck_mode', mode);

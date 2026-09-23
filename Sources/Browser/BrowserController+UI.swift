@@ -390,8 +390,7 @@ extension BrowserController {
     }
     
     func setLiveSearchEngine(_ engine: String) {
-        let normalized = engine.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else { return }
+        guard let normalized = SearchEngines.normalize(engine) else { return }
         
         // 1. Persist engine preference immediately
         UserDefaults.standard.set(normalized, forKey: "OnyxSearchEngine")
@@ -400,17 +399,18 @@ extension BrowserController {
         updateSearchPlaceholder()
         updateSearchEngineIcon()
         
-        // 3. Inform all open tabs live without reloading or resetting them!
+        // 3. Inform Onyx's own open pages live (never third-party sites) without reloading them
+        let engineJS = JS.string(normalized)
         let broadcastScript = """
-        window.postMessage({ type: 'onyx-search-engine-changed', engine: '\(normalized)' }, '*');
+        window.postMessage({ type: 'onyx-search-engine-changed', engine: \(engineJS) }, '*');
         if (typeof window.onOnyxSearchEngineChanged === 'function') {
-            window.onOnyxSearchEngineChanged('\(normalized)');
+            window.onOnyxSearchEngineChanged(\(engineJS));
         }
         if (typeof window.setSearchEngine === 'function') {
-            window.setSearchEngine('\(normalized)');
+            window.setSearchEngine(\(engineJS));
         }
         """
-        for tab in tabs {
+        for tab in tabs where isInternalPageURL(tab.webView.url ?? tab.url) {
             tab.webView.evaluateJavaScript(broadcastScript, completionHandler: nil)
         }
         

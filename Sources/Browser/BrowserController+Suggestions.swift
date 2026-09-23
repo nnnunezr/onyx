@@ -255,13 +255,16 @@ extension BrowserController {
     func fetchSuggestionsForWeb(query: String, reqId: String, from webView: WKWebView?) {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let fetchURL = URL(string: "https://duckduckgo.com/ac/?q=\(encoded)&type=list") else {
-            webView?.evaluateJavaScript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived('\(reqId)', []);", completionHandler: nil)
+              var comps = URLComponents(string: "https://duckduckgo.com/ac/") else {
+            webView?.evaluateJavaScript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived(\(JS.string(reqId)), []);", completionHandler: nil)
             return
         }
+        comps.queryItems = [URLQueryItem(name: "q", value: trimmed), URLQueryItem(name: "type", value: "list")]
+        // URLQueryItem leaves "+" and "&"-adjacent characters ambiguous for some servers; encode "+" explicitly.
+        comps.percentEncodedQuery = comps.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        guard let fetchURL = comps.url else { return }
         
-        URLSession.shared.dataTask(with: fetchURL) { data, _, error in
+        URLSession.shared.dataTask(with: fetchURL) { [weak webView] data, _, error in
             var jsonString = "[]"
             if error == nil, let data = data,
                let array = try? JSONSerialization.jsonObject(with: data, options: []) as? [Any],
@@ -272,7 +275,7 @@ extension BrowserController {
                 jsonString = str
             }
             DispatchQueue.main.async {
-                webView?.evaluateJavaScript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived('\(reqId)', \(jsonString));", completionHandler: nil)
+                webView?.evaluateJavaScript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived(\(JS.string(reqId)), \(jsonString));", completionHandler: nil)
             }
         }.resume()
     }

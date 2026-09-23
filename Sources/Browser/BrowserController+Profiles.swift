@@ -20,8 +20,14 @@ extension BrowserController {
                 if let uuid = UUID(uuidString: profile.id) {
                     uuidString = uuid.uuidString
                 } else {
-                    let hash = abs(profile.id.hashValue)
-                    uuidString = String(format: "C5E2F6A7-8192-A3B4-C5D6-%012ld", hash)
+                    // String.hashValue is re-seeded every launch, so derive a stable
+                    // 48-bit suffix with FNV-1a to keep this workspace's storage across restarts.
+                    var hash: UInt64 = 0xcbf29ce484222325
+                    for byte in profile.id.utf8 {
+                        hash ^= UInt64(byte)
+                        hash = hash &* 0x100000001b3
+                    }
+                    uuidString = String(format: "C5E2F6A7-8192-A3B4-C5D6-%012llX", hash & 0xFFFFFFFFFFFF)
                 }
             }
             if let uuid = UUID(uuidString: uuidString) {
@@ -43,27 +49,30 @@ extension BrowserController {
         config.websiteDataStore = websiteDataStore(for: profile)
         config.applicationNameForUserAgent = "Version/18.3 Safari/605.1.15"
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-        config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
+        // File-URL privileges (allowFileAccessFromFileURLs / allowUniversalAccessFromFileURLs) are
+        // deliberately left OFF: with them on, any local HTML file could read other local files.
+        // Bundled pages get subresource access via loadFileURL(_:allowingReadAccessTo:) instead.
         
-        if let ruleList = adBlockRuleList {
+        if let ruleList = adBlockRuleList, isAdBlockEnabled {
             config.userContentController.add(ruleList)
         }
-        setupYouTubeAdBlocker(for: config)
+        installSearchThemeStyleSheets(for: config)
+        installUserScripts(for: config)
         
-        setupResearchBridge(for: config)
-        config.userContentController.add(self, name: "openProfileManager")
-        config.userContentController.add(self, name: "onyxSavePasswordPrompt")
-        config.userContentController.add(self, name: "onyxSettings")
-        config.userContentController.add(self, name: "onyxNavigate")
-        config.userContentController.add(self, name: "onyxSwitchWorkspace")
-        config.userContentController.add(self, name: "onyxOpenSettings")
-        config.userContentController.add(self, name: "onyxFetchSuggestions")
-        config.userContentController.add(self, name: "onyxSetSearchEngine")
+        for name in BrowserController.scriptMessageNames {
+            config.userContentController.add(self, name: name)
+        }
+        config.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: "onyxFetchFeed")
         
         profileConfigurations[profile.id] = config
         return config
     }
+    
+    static let scriptMessageNames = [
+        "openProfileManager", "onyxSavePasswordPrompt", "onyxSettings", "onyxNavigate",
+        "onyxSwitchWorkspace", "onyxOpenSettings", "onyxFetchSuggestions", "onyxSetSearchEngine",
+        "bypassBotChallenge"
+    ]
     
     func switchToProfileIndex(_ index: Int) {
         guard index >= 0 && index < profiles.count else { return }
@@ -96,7 +105,9 @@ extension BrowserController {
         } else {
             tabs = []
             activeTabIndex = 0
-            createNewTab(url: startPageURL)
+            if !restoreSessionTabs(for: profile) {
+                createNewTab(url: startPageURL)
+            }
         }
         
         selectTab(at: activeTabIndex)
@@ -328,13 +339,17 @@ extension BrowserController {
     }
     
     func notifyStartPageOfProfile() {
-        let js = "if (window.updateActiveProfile) window.updateActiveProfile('\(activeProfile.name)', '\(activeProfile.colorHex)');"
+        let js = startPageProfileScript()
         for tab in tabs {
-            if tab.url.isFileURL && tab.url.path.contains("startpage.html") {
+            if isStartPageURL(tab.url) {
                 tab.webView.evaluateJavaScript(js, completionHandler: nil)
             } else if isSettingsURL(tab.url) {
                 sendSettingsPayload(to: tab.webView)
             }
         }
+    }
+    
+    func startPageProfileScript() -> String {
+        return "if (window.updateActiveProfile) window.updateActiveProfile(\(JS.string(activeProfile.name)), \(JS.string(activeProfile.colorHex)));"
     }
 }

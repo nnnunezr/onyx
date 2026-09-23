@@ -50,13 +50,13 @@ extension BrowserController {
         if isSearchURL(webView.url) {
             injectOnyxSearchScript(into: webView)
         }
-        if let url = webView.url, url.isFileURL && url.path.contains("startpage.html") {
-            let js = "if (window.updateActiveProfile) window.updateActiveProfile('\(activeProfile.name)', '\(activeProfile.colorHex)');"
-            webView.evaluateJavaScript(js, completionHandler: nil)
-            let defaultEngine = UserDefaults.standard.string(forKey: "OnyxSearchEngine") ?? "duckduckgo"
-            let engineJS = "if (window.setSearchEngine) window.setSearchEngine('\(defaultEngine)');"
+        if isStartPageURL(webView.url) {
+            webView.evaluateJavaScript(startPageProfileScript(), completionHandler: nil)
+            let engineJS = "if (window.setSearchEngine) window.setSearchEngine(\(JS.string(SearchEngines.current)));"
             webView.evaluateJavaScript(engineJS, completionHandler: nil)
+            webView.evaluateJavaScript(startPageNewsScript(), completionHandler: nil)
         }
+        saveSession()
         
         if let url = webView.url, isSettingsURL(url) {
             sendSettingsPayload(to: webView)
@@ -172,14 +172,17 @@ extension BrowserController {
     
     // MARK: - WKNavigationDelegate Policy Decisions & Download Handover
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences, decisionHandler: @escaping (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {
-        // Handle links with target="_blank"
-        if navigationAction.targetFrame == nil {
-            if let url = navigationAction.request.url {
-                createNewTab(url: url)
-                decisionHandler(.cancel, preferences)
-                return
-            }
+        // ⌘-click on a link: open it in a background tab (no opener relationship needed)
+        if navigationAction.navigationType == .linkActivated,
+           navigationAction.modifierFlags.contains(.command),
+           let url = navigationAction.request.url {
+            createNewTab(url: url, switchTo: navigationAction.modifierFlags.contains(.shift))
+            decisionHandler(.cancel, preferences)
+            return
         }
+        
+        // target="_blank" and window.open() are handled by webView(_:createWebViewWith:...) so
+        // popups keep their window.opener link (required by OAuth / "Sign in with..." flows).
         
         // Programmatic navigations (address bar search, back/forward, direct load, reload) must ALWAYS navigate
         if navigationAction.navigationType == .other || navigationAction.navigationType == .reload || navigationAction.navigationType == .backForward {
@@ -295,6 +298,24 @@ extension BrowserController {
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
         download.delegate = self
         registerDownload(download: download, sourceURL: navigationResponse.response.url)
+    }
+    
+    // MARK: - WKUIDelegate (New Windows / Popups)
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // WebKit requires the returned view to use exactly this configuration (same process pool,
+        // same data store as the opener) and loads the request into it itself.
+        let url = navigationAction.request.url ?? URL(string: "about:blank")!
+        let tab = BrowserTab(url: url, configuration: configuration)
+        attachTab(tab)
+        selectTab(at: tabs.count - 1)
+        return tab.webView
+    }
+    
+    func webViewDidClose(_ webView: WKWebView) {
+        // Popups (e.g. OAuth windows) call window.close() when finished.
+        if let tab = tabs.first(where: { $0.webView == webView }) {
+            closeTab(tab: tab)
+        }
     }
     
     // MARK: - WKUIDelegate (File Uploads & Dialogs)

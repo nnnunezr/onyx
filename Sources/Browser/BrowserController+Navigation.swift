@@ -43,7 +43,13 @@ extension BrowserController {
                 }
             }
         }
-        tab.webView.load(req)
+        if url.isFileURL {
+            // Grant read access to the file's own folder only (bundled pages need their
+            // sibling anime.min.js / logo.svg). Global file-URL privileges stay off.
+            tab.webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            tab.webView.load(req)
+        }
         
         if tab.id == activeTab.id {
             updateSearchField(url: url)
@@ -284,9 +290,10 @@ extension BrowserController {
         window?.makeFirstResponder(activeWebView)
     }
     
-    func resolveQuery(_ input: String) -> URL {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return startPageURL }
+    func resolveQuery(_ rawInput: String) -> URL {
+        let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if input.isEmpty { return startPageURL }
+        let trimmed = input
         let lower = trimmed.lowercased()
         if lower == "onyx://settings" || lower == "about:settings" || lower == "chrome://settings" || lower == "settings" {
             return settingsPageURL
@@ -333,8 +340,7 @@ extension BrowserController {
             let q = encodeQuery(String(input.dropFirst(3)).trimmingCharacters(in: .whitespaces))
             return URL(string: "https://search.brave.com/search?q=\(q)")!
         } else if input.hasPrefix("!lite ") || input.hasPrefix("!html ") {
-            let len = input.hasPrefix("!lite ") ? 6 : 6
-            let q = encodeQuery(String(input.dropFirst(len)).trimmingCharacters(in: .whitespaces))
+            let q = encodeQuery(String(input.dropFirst(6)).trimmingCharacters(in: .whitespaces))
             return URL(string: "https://html.duckduckgo.com/html/?q=\(q)")!
         }
         

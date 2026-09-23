@@ -1043,21 +1043,10 @@ extension BrowserController {
     func autofillActiveTab(with entry: OnyxPasswordEntry) {
         let webView = activeWebView
         
-        let escapedUser = entry.username
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "")
-        let escapedPass = entry.password
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "")
-            
         let js = """
         (function() {
-            const user = '\(escapedUser)';
-            const pass = '\(escapedPass)';
+            const user = \(JS.string(entry.username));
+            const pass = \(JS.string(entry.password));
             
             let passInputs = Array.from(document.querySelectorAll('input[type="password"]'));
             if (passInputs.length === 0) {
@@ -1192,11 +1181,14 @@ extension BrowserController {
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
     
-    func handleSavePasswordPromptMessage(_ dict: [String: Any]) {
+    func handleSavePasswordPromptMessage(_ dict: [String: Any], from webView: WKWebView) {
+        guard UserDefaults.standard.object(forKey: "OnyxOfferSavePasswords") as? Bool ?? true else { return }
         let username = (dict["username"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let password = (dict["password"] as? String) ?? ""
-        let urlStr = (dict["url"] as? String) ?? (activeWebView.url?.absoluteString ?? "")
-        let title = (dict["title"] as? String) ?? (activeWebView.title ?? "Login")
+        // Use the tab's real URL, never the page-supplied one: a page could otherwise
+        // get credentials filed under another site's domain.
+        let urlStr = webView.url?.absoluteString ?? ""
+        let title = webView.title ?? (dict["title"] as? String) ?? "Login"
         
         guard password.count >= 3 else { return }
         

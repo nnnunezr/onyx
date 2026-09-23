@@ -317,19 +317,40 @@ class OnyxPasswordExporter {
 // Persistent Vault Store (UserDefaults + ~/Library/Application Support/Onyx/passwords.json backup)
 class OnyxPasswordStore {
     static let shared = OnyxPasswordStore()
-    private let defaultsKey = "OnyxVaultPasswords"
-    private var entries: [OnyxPasswordEntry] = []
     
-    private var diskURL: URL {
+    // Legacy plaintext locations (pre-Keychain). Migrated once, then erased.
+    private let legacyDefaultsKey = "OnyxVaultPasswords"
+    private var legacyFileURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
-        let dir = appSupport.appendingPathComponent("Onyx")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("passwords.json")
+        return appSupport.appendingPathComponent("Onyx/passwords.json")
     }
     
+    // The whole vault is one Keychain generic-password item holding the JSON-encoded entries.
+    private let keychainService = "com.company.onyx.vault"
+    private let keychainAccount = "passwords"
+    
+    private var entries: [OnyxPasswordEntry] = []
+    /// False when the Keychain could not be read (e.g. access denied). Saving is then refused so
+    /// an empty in-memory vault can never overwrite the real one.
+    private(set) var isLoaded = false
+    
+    /// Placeholder rows older builds seeded into every new vault.
+    private static let legacySeedUsernames: Set<String> = ["developer@onyx.dev", "user@gmail.com", "trader_onyx"]
+    
+    static let didLoadNotification = Notification.Name("OnyxPasswordStoreDidLoad")
+    
+    /// Loads asynchronously: reading the Keychain can raise a system permission prompt, and
+    /// that must never block the main thread (it previously froze launch before the window appeared).
     init() {
-        load()
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            let result = readKeychain()
+            let legacy = loadLegacyPlaintext()
+            DispatchQueue.main.async {
+                self.finishLoad(result, legacy: legacy)
+                NotificationCenter.default.post(name: OnyxPasswordStore.didLoadNotification, object: self)
+            }
+        }
     }
     
     func allEntries() -> [OnyxPasswordEntry] {
@@ -348,32 +369,122 @@ class OnyxPasswordStore {
         return entries.filter { $0.matches(host: host) }
     }
     
-    func load() {
-        if let data = UserDefaults.standard.data(forKey: defaultsKey),
-           let list = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) {
-            self.entries = list
+    private func finishLoad(_ result: Result<Data?, KeychainError>, legacy: [OnyxPasswordEntry]) {
+        // Anything the user saved while the load was still in flight.
+        let pendingLocal = entries
+        
+        let stored: [OnyxPasswordEntry]
+        switch result {
+        case .failure(let error):
+            NSLog("Onyx: password vault unavailable (Keychain status %d)", error.status)
+            isLoaded = false
             return
+        case .success(nil):
+            stored = []
+        case .success(let data?):
+            guard let decoded = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) else {
+                // Never overwrite a vault we could not read.
+                NSLog("Onyx: password vault in Keychain is unreadable; leaving it untouched")
+                isLoaded = false
+                return
+            }
+            stored = decoded
         }
-        if let data = try? Data(contentsOf: diskURL),
-           let list = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) {
-            self.entries = list
-            save()
-            return
+        
+        // Legacy plaintext (pre-Keychain) is merged in once, minus the fake rows old builds seeded.
+        let cleanLegacy = legacy.filter {
+            !($0.password == "••••••••••••" && OnyxPasswordStore.legacySeedUsernames.contains($0.username))
         }
-        // Default clean vault state with helpful initial bookmarks/examples
-        self.entries = [
-            OnyxPasswordEntry(title: "GitHub", urlString: "https://github.com/login", username: "developer@onyx.dev", password: "••••••••••••", notes: "Personal developer account"),
-            OnyxPasswordEntry(title: "Google", urlString: "https://accounts.google.com", username: "user@gmail.com", password: "••••••••••••", notes: "Primary Google Workspace"),
-            OnyxPasswordEntry(title: "TradingView", urlString: "https://www.tradingview.com", username: "trader_onyx", password: "••••••••••••", notes: "Market charting login")
-        ]
-        save()
+        entries = OnyxPasswordStore.merge(stored, with: cleanLegacy + pendingLocal)
+        isLoaded = true
+        
+        if !legacy.isEmpty || !pendingLocal.isEmpty {
+            if save() { eraseLegacyPlaintext() }
+        }
     }
     
-    func save() {
-        if let data = try? JSONEncoder().encode(entries) {
-            UserDefaults.standard.set(data, forKey: defaultsKey)
-            try? data.write(to: diskURL, options: .atomic)
+    /// Union by id; when both sides have an entry, the most recently updated one wins.
+    private static func merge(_ base: [OnyxPasswordEntry], with incoming: [OnyxPasswordEntry]) -> [OnyxPasswordEntry] {
+        var result = base
+        for entry in incoming {
+            if let idx = result.firstIndex(where: { $0.id == entry.id }) {
+                if entry.updatedAt > result[idx].updatedAt { result[idx] = entry }
+            } else {
+                result.append(entry)
+            }
         }
+        return result
+    }
+    
+    @discardableResult
+    func save() -> Bool {
+        guard isLoaded else {
+            NSLog("Onyx: refusing to save password vault that failed to load")
+            return false
+        }
+        guard let data = try? JSONEncoder().encode(entries) else { return false }
+        let status = writeKeychain(data)
+        if status != errSecSuccess {
+            NSLog("Onyx: failed to save password vault (Keychain status %d)", status)
+        }
+        return status == errSecSuccess
+    }
+    
+    // MARK: Keychain I/O
+    private var baseQuery: [String: Any] {
+        return [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: keychainAccount
+        ]
+    }
+    
+    private func readKeychain() -> Result<Data?, KeychainError> {
+        var query = baseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess: return .success(result as? Data)
+        case errSecItemNotFound: return .success(nil)
+        default: return .failure(KeychainError(status: status))
+        }
+    }
+    
+    private func writeKeychain(_ data: Data) -> OSStatus {
+        let update: [String: Any] = [kSecValueData as String: data]
+        var status = SecItemUpdate(baseQuery as CFDictionary, update as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = baseQuery
+            add[kSecValueData as String] = data
+            add[kSecAttrLabel as String] = "Onyx Password Vault"
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        return status
+    }
+    
+    struct KeychainError: Error {
+        let status: OSStatus
+    }
+    
+    // MARK: Legacy plaintext migration
+    private func loadLegacyPlaintext() -> [OnyxPasswordEntry] {
+        if let data = UserDefaults.standard.data(forKey: legacyDefaultsKey),
+           let list = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) {
+            return list
+        }
+        if let data = try? Data(contentsOf: legacyFileURL),
+           let list = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) {
+            return list
+        }
+        return []
+    }
+    
+    private func eraseLegacyPlaintext() {
+        UserDefaults.standard.removeObject(forKey: legacyDefaultsKey)
+        try? FileManager.default.removeItem(at: legacyFileURL)
     }
     
     func addOrUpdate(_ entry: OnyxPasswordEntry) {

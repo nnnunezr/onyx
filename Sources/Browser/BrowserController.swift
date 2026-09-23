@@ -3,7 +3,7 @@ import WebKit
 import UniformTypeIdentifiers
 
 // MARK: - Main Browser Window Controller
-class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, NSTextFieldDelegate, WKScriptMessageHandler {
+class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, NSTextFieldDelegate, WKScriptMessageHandler, WKScriptMessageHandlerWithReply {
     // Downloads Management
     var downloads: [OnyxDownloadItem] = []
     var activeDownloads: [WKDownload: OnyxDownloadItem] = [:]
@@ -28,25 +28,6 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     var extensionsStack: NSStackView!
     var trailingControlsStack: NSStackView!
     
-    // WebKit Shared Configuration with High-Speed Engine Tuning
-    let sharedConfiguration: WKWebViewConfiguration = {
-        let config = WKWebViewConfiguration()
-        config.allowsAirPlayForMediaPlayback = true
-        config.preferences.isElementFullscreenEnabled = true
-        
-        // 1. Instant rendering optimization (don't delay painting until full page finishes)
-        config.suppressesIncrementalRendering = false
-        
-        // 2. Persistent disk caching & website data store
-        config.websiteDataStore = WKWebsiteDataStore.default()
-        
-        // 3. Fast JavaScript configuration
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-        config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
-        
-        return config
-    }()
     
     // Profile Management (Multi-Profile System with Isolated DataStores)
     var profiles: [BrowserProfile] = [
@@ -134,17 +115,35 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
         if let bundleURL = Bundle.main.url(forResource: "startpage", withExtension: "html") {
             return bundleURL
         }
-        let path = "/Users/nata/Company/Browser/startpage.html"
-        return URL(fileURLWithPath: path)
+        return BrowserController.devResourceURL("startpage.html")
     }()
     
     let settingsPageURL: URL = {
         if let bundleURL = Bundle.main.url(forResource: "settings", withExtension: "html") {
             return bundleURL
         }
-        let path = "/Users/nata/Company/Browser/settings.html"
-        return URL(fileURLWithPath: path)
+        return BrowserController.devResourceURL("settings.html")
     }()
+    
+    /// Fallback for running the raw `onyx` binary outside the .app bundle: resources sit next to the executable.
+    static func devResourceURL(_ name: String) -> URL {
+        let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
+        return exeDir.appendingPathComponent(name)
+    }
+    
+    /// True only for Onyx's own bundled pages (start page & settings). These are the
+    /// only documents allowed to drive privileged native bridges.
+    func isInternalPageURL(_ url: URL?) -> Bool {
+        guard let url = url, url.isFileURL else { return false }
+        let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        return path == startPageURL.standardizedFileURL.resolvingSymlinksInPath().path ||
+               path == settingsPageURL.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+    
+    func isStartPageURL(_ url: URL?) -> Bool {
+        guard let url = url, url.isFileURL else { return false }
+        return url.standardizedFileURL.resolvingSymlinksInPath().path == startPageURL.standardizedFileURL.resolvingSymlinksInPath().path
+    }
     
     func isSettingsURL(_ url: URL?) -> Bool {
         guard let url = url else { return false }
@@ -181,14 +180,22 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
         loadSavedProfiles()
         loadSavedBookmarks()
         loadBrowsingHistory()
-        purgeSearchBotAnomalyCookies()
         setupAdBlocker()
-        setupOnyxResearchBridge()
         setupUI()
         setupShortcuts()
+        NotificationCenter.default.addObserver(forName: OnyxPasswordStore.didLoadNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.updatePasswordsBadge(for: self.activeWebView.url)
+            if self.passwordsPopover?.isShown == true {
+                self.refreshPasswordManagerList(query: self.passwordSearchField?.stringValue ?? "")
+            }
+        }
         
-        // Open initial tab based on user preference
+        // Open initial tab(s) based on user preference
         let startupMode = UserDefaults.standard.string(forKey: "OnyxStartupBehavior") ?? "startpage"
+        if startupMode == "restore", restoreSessionTabs(for: activeProfile) {
+            return
+        }
         if startupMode == "blank" {
             createNewTab(url: URL(string: "about:blank")!)
         } else {

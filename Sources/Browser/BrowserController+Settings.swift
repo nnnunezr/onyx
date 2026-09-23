@@ -21,45 +21,42 @@ extension BrowserController {
     }
     
     func sendSettingsPayload(to webView: WKWebView) {
-        let defaultEngine = UserDefaults.standard.string(forKey: "OnyxSearchEngine") ?? "duckduckgo"
-        let startup = UserDefaults.standard.string(forKey: "OnyxStartupBehavior") ?? "startpage"
-        let showBookmarks = UserDefaults.standard.object(forKey: "OnyxShowBookmarksBar") as? Bool ?? true
-        let adBlock = UserDefaults.standard.object(forKey: "OnyxAdBlockEnabled") as? Bool ?? true
-        let theme = UserDefaults.standard.string(forKey: "OnyxTheme") ?? "pitch-black"
+        let defaults = UserDefaults.standard
+        let startup = defaults.string(forKey: "OnyxStartupBehavior") ?? "startpage"
+        let showBookmarks = defaults.object(forKey: "OnyxShowBookmarksBar") as? Bool ?? true
+        let newsEnabled = defaults.object(forKey: "OnyxNewsEnabled") as? Bool ?? true
+        let offerSavePasswords = defaults.object(forKey: "OnyxOfferSavePasswords") as? Bool ?? true
         let downloadsPath = (try? FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false).path) ?? "~/Downloads"
         
-        var profList: [[String: Any]] = []
-        for p in profiles {
+        let profList: [[String: Any]] = profiles.map { p in
             let tCount = (p.id == activeProfile.id) ? tabs.count : (profileTabs[p.id]?.count ?? 0)
-            profList.append([
+            return [
                 "id": p.id,
                 "name": p.name,
                 "colorHex": p.colorHex,
                 "tabCount": tCount,
-                "isActive": (p.id == activeProfile.id)
-            ])
+                "isActive": (p.id == activeProfile.id),
+                "isDefault": p.isDefault || p.id == "personal"
+            ]
         }
         
-        let memMB = getResidentMemoryMB()
-        let ramFormatted = String(format: "%.1f MB", memMB)
-        
         let payload: [String: Any] = [
-            "searchEngine": defaultEngine,
+            "searchEngine": SearchEngines.current,
             "startup": startup,
             "showBookmarksBar": showBookmarks,
-            "adBlockEnabled": adBlock,
-            "theme": theme,
+            "adBlockEnabled": isAdBlockEnabled,
+            "newsEnabled": newsEnabled,
+            "offerSavePasswords": offerSavePasswords,
             "downloadsPath": downloadsPath,
             "profiles": profList,
-            "ramUsage": ramFormatted
+            "activeProfileId": activeProfile.id,
+            "ramUsage": String(format: "%.1f MB", getResidentMemoryMB())
         ]
         
-        if let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
-           let jsonStr = String(data: data, encoding: .utf8) {
-            let js = "if (window.renderSettings) window.renderSettings(\(jsonStr));"
-            DispatchQueue.main.async {
-                webView.evaluateJavaScript(js, completionHandler: nil)
-            }
+        guard let json = JS.literal(payload) else { return }
+        let js = "if (window.renderSettings) window.renderSettings(\(json));"
+        DispatchQueue.main.async {
+            webView.evaluateJavaScript(js, completionHandler: nil)
         }
     }
     
@@ -79,12 +76,11 @@ extension BrowserController {
     
     func handleSettingsMessage(_ dict: [String: Any], from webView: WKWebView?) {
         guard let action = dict["action"] as? String else { return }
+        let defaults = UserDefaults.standard
         
         switch action {
         case "getSettings":
-            if let webView = webView {
-                sendSettingsPayload(to: webView)
-            }
+            break
             
         case "setSearchEngine":
             if let engine = dict["engine"] as? String {
@@ -92,8 +88,9 @@ extension BrowserController {
             }
             
         case "setStartup":
-            if let mode = dict["mode"] as? String {
-                UserDefaults.standard.set(mode, forKey: "OnyxStartupBehavior")
+            if let mode = dict["mode"] as? String, ["startpage", "restore", "blank"].contains(mode) {
+                defaults.set(mode, forKey: "OnyxStartupBehavior")
+                if mode == "restore" { saveSession() }
             }
             
         case "setShowBookmarksBar":
@@ -103,52 +100,41 @@ extension BrowserController {
             
         case "setAdBlockEnabled":
             if let enabled = dict["enabled"] as? Bool {
-                UserDefaults.standard.set(enabled, forKey: "OnyxAdBlockEnabled")
-                if let ruleList = adBlockRuleList {
-                    if enabled {
-                        sharedConfiguration.userContentController.add(ruleList)
-                        for (_, cfg) in profileConfigurations {
-                            cfg.userContentController.add(ruleList)
-                        }
-                    } else {
-                        sharedConfiguration.userContentController.remove(ruleList)
-                        for (_, cfg) in profileConfigurations {
-                            cfg.userContentController.remove(ruleList)
-                        }
-                    }
+                defaults.set(enabled, forKey: "OnyxAdBlockEnabled")
+                applyAdBlockSetting()
+            }
+            
+        case "setNewsEnabled":
+            if let enabled = dict["enabled"] as? Bool {
+                defaults.set(enabled, forKey: "OnyxNewsEnabled")
+                for tab in tabs where isStartPageURL(tab.url) {
+                    tab.webView.evaluateJavaScript(startPageNewsScript(), completionHandler: nil)
                 }
+            }
+            
+        case "setOfferSavePasswords":
+            if let enabled = dict["enabled"] as? Bool {
+                defaults.set(enabled, forKey: "OnyxOfferSavePasswords")
             }
             
         case "switchWorkspace":
             if let profId = dict["id"] as? String, let prof = profiles.first(where: { $0.id == profId }) {
                 switchToProfile(prof)
-                if let webView = webView {
-                    sendSettingsPayload(to: webView)
-                }
             }
             
         case "createWorkspace":
             if let name = dict["name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let colorHex = dict["colorHex"] as? String
+                let colorHex = (dict["colorHex"] as? String).flatMap { NSColor(hex: $0) != nil ? $0 : nil }
                 addCustomProfile(name: name.trimmingCharacters(in: .whitespacesAndNewlines), hex: colorHex)
-                if let webView = webView {
-                    sendSettingsPayload(to: webView)
-                }
             }
             
         case "deleteWorkspace":
             if let profId = dict["id"] as? String {
                 deleteCustomProfile(id: profId)
-                if let webView = webView {
-                    sendSettingsPayload(to: webView)
-                }
             }
             
         case "clearCache":
             clearActiveProfileCache()
-            if let webView = webView {
-                sendSettingsPayload(to: webView)
-            }
             
         case "openDownloads":
             if let url = try? FileManager.default.url(for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
@@ -159,32 +145,104 @@ extension BrowserController {
             togglePasswordsPopover()
             
         default:
-            break
+            return
+        }
+        
+        // Every action re-syncs the page so it always reflects native state.
+        if let webView = webView {
+            sendSettingsPayload(to: webView)
         }
     }
     
+    func startPageNewsScript() -> String {
+        let enabled = UserDefaults.standard.object(forKey: "OnyxNewsEnabled") as? Bool ?? true
+        return "if (window.setNewsEnabled) window.setNewsEnabled(\(enabled));"
+    }
+    
+    // MARK: - Script Message Routing & Sender Verification
+    /// Where a script message came from. Privileged bridges only answer Onyx's own pages;
+    /// everything else on the web is untrusted and may post any message it likes.
+    private func messageSource(_ message: WKScriptMessage) -> (isInternal: Bool, isSearchPage: Bool, url: URL?) {
+        let frameURL = message.frameInfo.request.url
+        guard message.frameInfo.isMainFrame else { return (false, false, frameURL) }
+        return (isInternalPageURL(frameURL), isSearchURL(frameURL) || isResearchURL(frameURL), frameURL)
+    }
+    
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "openProfileManager" {
+        let source = messageSource(message)
+        let body = message.body as? [String: Any]
+        
+        switch message.name {
+        // Posted by pages Onyx injects into web content: allowed from the web, but scoped.
+        case "onyxSavePasswordPrompt":
+            guard message.frameInfo.isMainFrame, let dict = body, let webView = message.webView else { return }
+            handleSavePasswordPromptMessage(dict, from: webView)
+        case "bypassBotChallenge":
+            guard source.isSearchPage, let webView = message.webView else { return }
+            handleBotChallenge(in: webView)
+        case "openProfileManager":
+            guard source.isInternal || source.isSearchPage else { return }
             showProfileManagerPopover()
-        } else if message.name == "onyxSettings", let dict = message.body as? [String: Any] {
-            handleSettingsMessage(dict, from: message.webView)
-        } else if message.name == "bypassBotChallenge" {
-            handleBotChallenge(in: activeWebView)
-        } else if message.name == "onyxSavePasswordPrompt", let dict = message.body as? [String: Any] {
-            handleSavePasswordPromptMessage(dict)
-        } else if message.name == "onyxNavigate", let dict = message.body as? [String: Any], let urlStr = dict["url"] as? String {
-            let targetURL = resolveQuery(urlStr)
-            loadURL(targetURL)
-        } else if message.name == "onyxSwitchWorkspace", let dict = message.body as? [String: Any], let urlStr = dict["url"] as? String {
-            if let targetURL = URL(string: urlStr) {
-                loadURL(targetURL)
+            
+        // Privileged bridges: Onyx's bundled start page and settings page only.
+        default:
+            guard source.isInternal else {
+                NSLog("Onyx: blocked '%@' message from untrusted frame %@", message.name, source.url?.absoluteString ?? "nil")
+                return
             }
-        } else if message.name == "onyxOpenSettings" {
-            openSettingsTab()
-        } else if message.name == "onyxSetSearchEngine", let dict = message.body as? [String: Any], let engine = dict["engine"] as? String {
-            setLiveSearchEngine(engine)
-        } else if message.name == "onyxFetchSuggestions", let dict = message.body as? [String: Any], let query = dict["query"] as? String, let reqId = dict["reqId"] as? String {
-            fetchSuggestionsForWeb(query: query, reqId: reqId, from: message.webView)
+            switch message.name {
+            case "onyxSettings":
+                if let dict = body { handleSettingsMessage(dict, from: message.webView) }
+            case "onyxNavigate", "onyxSwitchWorkspace":
+                if let urlStr = body?["url"] as? String, !urlStr.isEmpty {
+                    let target = resolveQuery(urlStr)
+                    // The start page may only send the tab to the web or back to Onyx pages.
+                    guard ["http", "https"].contains(target.scheme?.lowercased() ?? "") || isInternalPageURL(target) else { return }
+                    if let tab = tabs.first(where: { $0.webView == message.webView }) {
+                        loadTabURL(tab: tab, url: target)
+                    } else {
+                        loadURL(target)
+                    }
+                }
+            case "onyxOpenSettings":
+                openSettingsTab()
+            case "onyxSetSearchEngine":
+                if let engine = body?["engine"] as? String { setLiveSearchEngine(engine) }
+            case "onyxFetchSuggestions":
+                if let query = body?["query"] as? String, let reqId = body?["reqId"] as? String {
+                    fetchSuggestionsForWeb(query: query, reqId: reqId, from: message.webView)
+                }
+            default:
+                break
+            }
         }
+    }
+    
+    // MARK: - Start Page Feed Proxy
+    /// The start page runs from file://, which (correctly) cannot read cross-origin feeds that
+    /// lack CORS headers. This proxies an allowlisted set of feed hosts for Onyx's own pages only.
+    static let feedHostAllowlist: Set<String> = ["news.google.com", "hn.algolia.com"]
+    
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping (Any?, String?) -> Void) {
+        guard message.name == "onyxFetchFeed" else { return replyHandler(nil, "unknown handler") }
+        guard messageSource(message).isInternal else { return replyHandler(nil, "untrusted sender") }
+        guard let urlStr = (message.body as? [String: Any])?["url"] as? String,
+              let url = URL(string: urlStr), url.scheme == "https",
+              let host = url.host?.lowercased(), BrowserController.feedHostAllowlist.contains(host) else {
+            return replyHandler(nil, "url not allowed")
+        }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 6)
+        request.setValue("application/json, text/xml, */*", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            let ok = ((response as? HTTPURLResponse)?.statusCode ?? 0) < 400
+            let text = data.flatMap { String(data: $0, encoding: .utf8) }
+            DispatchQueue.main.async {
+                if error == nil, ok, let text = text {
+                    replyHandler(text, nil)
+                } else {
+                    replyHandler(nil, error?.localizedDescription ?? "fetch failed")
+                }
+            }
+        }.resume()
     }
 }

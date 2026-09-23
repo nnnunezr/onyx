@@ -4,40 +4,30 @@ import UniformTypeIdentifiers
 
 extension BrowserController {
     // MARK: - Private Search & Bot Challenge Bypass Engine
-    func purgeSearchBotAnomalyCookies(completion: (() -> Void)? = nil) {
-        var stores: [WKWebsiteDataStore] = [WKWebsiteDataStore.default(), sharedConfiguration.websiteDataStore]
-        stores.append(websiteDataStore(for: activeProfile))
-        
-        let group = DispatchGroup()
-        for store in stores {
-            group.enter()
-            store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-                let ddg = records.filter { $0.displayName.contains("duckduckgo") || $0.displayName.contains("duck.com") }
-                if !ddg.isEmpty {
-                    store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: ddg) {
-                        group.leave()
-                    }
-                } else {
-                    group.leave()
-                }
+    /// Clears DuckDuckGo's anomaly/bot-check state from the given store only.
+    func purgeSearchBotAnomalyCookies(in store: WKWebsiteDataStore, completion: (() -> Void)? = nil) {
+        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+            let ddg = records.filter { $0.displayName.contains("duckduckgo") || $0.displayName.contains("duck.com") }
+            guard !ddg.isEmpty else {
+                completion?()
+                return
             }
-        }
-        group.notify(queue: .main) {
-            completion?()
+            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: ddg) {
+                completion?()
+            }
         }
     }
     
     func handleBotChallenge(in webView: WKWebView) {
         let query = extractSearchQuery(from: webView.url)
-        purgeSearchBotAnomalyCookies { [weak self] in
+        guard !query.isEmpty else { return }
+        purgeSearchBotAnomalyCookies(in: webView.configuration.websiteDataStore) { [weak webView] in
             DispatchQueue.main.async {
-                guard self != nil else { return }
-                if !query.isEmpty {
-                    let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                    // In Onyx, bot verification is disabled for private browsing.
-                    // Auto-bypass to private bot-free Brave Search
-                    let bypassURL = URL(string: "https://search.brave.com/search?q=\(encoded)")!
-                    webView.load(URLRequest(url: bypassURL))
+                var comps = URLComponents(string: "https://search.brave.com/search")!
+                comps.queryItems = [URLQueryItem(name: "q", value: query)]
+                // Bot verification wall hit: fall back to Brave Search for this query.
+                if let bypassURL = comps.url {
+                    webView?.load(URLRequest(url: bypassURL))
                 }
             }
         }
@@ -45,21 +35,24 @@ extension BrowserController {
     
     // MARK: - Global Ad & Tracker Blocker + YouTube Ad Engine
     
+    var isAdBlockEnabled: Bool {
+        return UserDefaults.standard.object(forKey: "OnyxAdBlockEnabled") as? Bool ?? true
+    }
+    
     func setupYouTubeAdBlocker(for config: WKWebViewConfiguration) {
+        guard isAdBlockEnabled else { return }
         let userScript = WKUserScript(source: youTubeAdBlockerSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         config.userContentController.addUserScript(userScript)
     }
 
     func injectYouTubeAdBlocker(into webView: WKWebView) {
-        guard let url = webView.url, let host = url.host?.lowercased(),
+        guard isAdBlockEnabled, let url = webView.url, let host = url.host?.lowercased(),
               host.contains("youtube.com") || host.contains("youtu.be") else { return }
         webView.evaluateJavaScript(youTubeAdBlockerSource, completionHandler: nil)
     }
 
     // High-speed native ad/tracker rule compilation with YouTube ad shield
     func setupAdBlocker() {
-        setupYouTubeAdBlocker(for: sharedConfiguration)
-        
         let blockedDomains = [
             // Third-party Ad & Tracker Networks (Never block first-party youtube.com to prevent video player streaming breakage)
             "googleads\\.g\\.doubleclick\\.net",
@@ -133,11 +126,29 @@ extension BrowserController {
         ) { [weak self] ruleList, error in
             if let ruleList = ruleList, let self = self {
                 self.adBlockRuleList = ruleList
-                self.sharedConfiguration.userContentController.add(ruleList)
-                for (_, config) in self.profileConfigurations {
-                    config.userContentController.add(ruleList)
-                }
+                self.applyAdBlockSetting()
             }
         }
+    }
+    
+    /// Brings every workspace configuration in line with the stored ad-block preference:
+    /// native rule list plus the YouTube script (user scripts are rebuilt so it can be dropped).
+    func applyAdBlockSetting() {
+        let enabled = isAdBlockEnabled
+        for (_, config) in profileConfigurations {
+            let ucc = config.userContentController
+            if let ruleList = adBlockRuleList {
+                ucc.remove(ruleList)
+                if enabled { ucc.add(ruleList) }
+            }
+            ucc.removeAllUserScripts()
+            installUserScripts(for: config)
+        }
+    }
+    
+    /// All per-configuration user scripts. Safe to call again after removeAllUserScripts().
+    func installUserScripts(for config: WKWebViewConfiguration) {
+        setupYouTubeAdBlocker(for: config)
+        installSearchThemeScripts(for: config)
     }
 }

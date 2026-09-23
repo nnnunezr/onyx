@@ -13,7 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let iconPath = Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
            let iconImg = NSImage(contentsOfFile: iconPath) {
             NSApp.applicationIconImage = iconImg
-        } else if let localIcon = NSImage(contentsOfFile: "/Users/nata/Company/Browser/AppIcon.icns") {
+        } else if let localIcon = NSImage(contentsOf: BrowserController.devResourceURL("AppIcon.icns")) {
             NSApp.applicationIconImage = localIcon
         }
 
@@ -25,12 +25,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         if CommandLine.arguments.count > 1 {
             let arg = CommandLine.arguments[1]
-            if let url = URL(string: arg), url.scheme != nil {
-                browserController?.loadURL(url)
-            } else if !arg.hasPrefix("-") {
-                if let resolved = browserController?.resolveQuery(arg) {
-                    browserController?.loadURL(resolved)
-                }
+            // resolveQuery handles http(s), file://, onyx:// aliases, bare domains and search text.
+            if !arg.hasPrefix("-"), let resolved = browserController?.resolveQuery(arg) {
+                browserController?.loadURL(resolved)
             }
         }
     }
@@ -50,6 +47,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls {
             browserController?.createNewTab(url: url)
         }
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        browserController?.saveSession()
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

@@ -4,11 +4,9 @@ import UniformTypeIdentifiers
 
 extension BrowserController {
     // Onyx Research Engine: Direct Comet-Style WebKit Integration
-    func setupOnyxResearchBridge() {
-        setupResearchBridge(for: sharedConfiguration)
-    }
-    
-    func setupResearchBridge(for config: WKWebViewConfiguration) {
+    /// Registers the search/research theme as native user style sheets (private `_WKUserStyleSheet` API).
+    /// Call once per configuration; these survive removeAllUserScripts().
+    func installSearchThemeStyleSheets(for config: WKWebViewConfiguration) {
         // Native WebKit UserStyleSheet registration (Zero-FOUC, applied at WebCore parser level before DOM evaluation)
         if let userStyleSheetClass = NSClassFromString("_WKUserStyleSheet") as? NSObject.Type {
             let sel = NSSelectorFromString("initWithSource:forWKWebView:forMainFrameOnly:includeMatchPatternStrings:excludeMatchPatternStrings:baseURL:level:contentWorld:")
@@ -55,6 +53,10 @@ extension BrowserController {
             }
         }
 
+    }
+    
+    /// Document-start/end scripts that theme search & research pages. Repeatable.
+    func installSearchThemeScripts(for config: WKWebViewConfiguration) {
         let escapedResearchCSS = onyxResearchCSS
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "`", with: "\\`")
@@ -763,7 +765,6 @@ extension BrowserController {
         config.userContentController.addUserScript(userScriptStart)
         let userScriptEnd = WKUserScript(source: jsSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         config.userContentController.addUserScript(userScriptEnd)
-        config.userContentController.add(self, name: "bypassBotChallenge")
     }
     
     func injectOnyxResearchScript(into webView: WKWebView) {

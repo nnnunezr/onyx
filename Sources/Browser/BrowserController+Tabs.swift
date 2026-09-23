@@ -16,15 +16,7 @@ extension BrowserController {
         } else if let host = url.host, !url.isFileURL {
             tab.favicon = FaviconManager.shared.cachedFavicon(for: host)
         }
-        tab.webView.navigationDelegate = self
-        tab.webView.uiDelegate = self
-        
-        tab.webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
-        tab.webView.addObserver(self, forKeyPath: "title", options: .new, context: nil)
-        tab.webView.addObserver(self, forKeyPath: "URL", options: .new, context: nil)
-        tab.isObserved = true
-        
-        tabs.append(tab)
+        attachTab(tab)
         
         if switchTo {
             selectTab(at: tabs.count - 1)
@@ -33,6 +25,17 @@ extension BrowserController {
         }
         
         loadTabURL(tab: tab, url: url)
+    }
+    
+    /// Wires delegates + KVO and appends the tab. Does not load anything or change selection.
+    func attachTab(_ tab: BrowserTab) {
+        tab.webView.navigationDelegate = self
+        tab.webView.uiDelegate = self
+        tab.webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
+        tab.webView.addObserver(self, forKeyPath: "title", options: .new, context: nil)
+        tab.webView.addObserver(self, forKeyPath: "URL", options: .new, context: nil)
+        tab.isObserved = true
+        tabs.append(tab)
     }
     
     func selectTab(at index: Int) {
@@ -119,6 +122,7 @@ extension BrowserController {
         closingTab.webView.removeFromSuperview()
         
         tabs.remove(at: index)
+        defer { saveSession() }
         
         if tabs.isEmpty {
             activeTabIndex = 0
