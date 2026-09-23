@@ -24,7 +24,7 @@ class AdBlockEngine {
         "criteo.com",
         "scorecardresearch.com",
         "quantserve.com",
-        "facebook.net/en_US/fbevents.js",
+        "connect.facebook.net/en_US/fbevents.js",
         "analytics.tiktok.com",
         "adroll.com"
     )
@@ -32,8 +32,14 @@ class AdBlockEngine {
     fun shouldBlock(uri: Uri?): Boolean {
         if (!isEnabled || uri == null) return false
         val host = uri.host?.lowercase() ?: return false
+        val path = uri.path ?: ""
         for (blocked in blockedHosts) {
-            if (host == blocked || host.endsWith(".$blocked")) {
+            // Entries may be "host" or "host/path-prefix" (e.g. a single tracking script).
+            val slash = blocked.indexOf('/')
+            val ruleHost = if (slash >= 0) blocked.substring(0, slash) else blocked
+            val rulePath = if (slash >= 0) blocked.substring(slash) else ""
+            val hostMatches = host == ruleHost || host.endsWith(".$ruleHost")
+            if (hostMatches && (rulePath.isEmpty() || path.startsWith(rulePath))) {
                 blockedCount.incrementAndGet()
                 return true
             }

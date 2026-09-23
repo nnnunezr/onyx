@@ -13,11 +13,15 @@ class OnyxWebViewClient(
     private val adBlockEngine: AdBlockEngine
 ) : WebViewClient() {
 
+    var bridge: OnyxAndroidBridge? = null
+
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         val url = request?.url?.toString() ?: return false
-        if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("file:///")) {
+        if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith(MainActivity.ASSET_PREFIX)) {
             return false
         }
+        // Web content must not steer the WebView to other local files.
+        if (url.startsWith("file:")) return true
         // External application schemes (mailto:, tel:, geo:, market:)
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -40,6 +44,8 @@ class OnyxWebViewClient(
     }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        // Only Onyx's bundled pages may drive the OnyxAndroid bridge.
+        bridge?.trustedPageLoaded = url?.startsWith(MainActivity.ASSET_PREFIX) == true
         super.onPageStarted(view, url, favicon)
         activity.updateNavigationState()
         if (url != null && (url.contains("duckduckgo.com") || url.contains("duck.com") ||

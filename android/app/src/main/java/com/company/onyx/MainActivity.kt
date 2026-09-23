@@ -86,7 +86,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupWebView() {
         chromeClient = OnyxWebChromeClient(this, progressBar, fullscreenContainer)
         webView.webChromeClient = chromeClient
-        webView.webViewClient = OnyxWebViewClient(this, adBlockEngine)
+        val client = OnyxWebViewClient(this, adBlockEngine)
+        webView.webViewClient = client
 
         webView.settings.apply {
             javaScriptEnabled = true
@@ -100,13 +101,19 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             cacheMode = WebSettings.LOAD_DEFAULT
             mediaPlaybackRequiresUserGesture = false
-            allowFileAccess = true
-            allowContentAccess = true
-            allowFileAccessFromFileURLs = true
-            allowUniversalAccessFromFileURLs = true
+            // file:///android_asset/ pages load regardless of these. Keeping them off stops any
+            // local HTML from reading other files; the start page's non-CORS feed goes through
+            // OnyxAndroid.fetchFeed instead.
+            allowFileAccess = false
+            allowContentAccess = false
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = false
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = false
         }
 
         val bridge = OnyxAndroidBridge(this, adBlockEngine)
+        client.bridge = bridge
         webView.addJavascriptInterface(bridge, "OnyxAndroid")
     }
 
@@ -170,6 +177,8 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    fun isShowingAssetPage(): Boolean = webView.url?.startsWith(ASSET_PREFIX) == true
+
     fun loadHome() {
         webView.loadUrl("file:///android_asset/startpage.html")
     }
@@ -205,7 +214,7 @@ class MainActivity : AppCompatActivity() {
                 val q = java.net.URLEncoder.encode(trimmed.substring(3).trim(), "UTF-8")
                 "https://kagi.com/search?q=$q"
             }
-            trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("file:///") -> trimmed
+            trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith(ASSET_PREFIX) -> trimmed
             trimmed.contains(".") && !trimmed.contains(" ") -> "https://$trimmed"
             else -> {
                 val q = java.net.URLEncoder.encode(trimmed, "UTF-8")
@@ -223,22 +232,38 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(target)
     }
 
-    fun sendSuggestionsResponse(reqId: String, json: String) {
-        webView.evaluateJavascript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived('$reqId', $json);", null)
+    /** [suggestions] must already be a JSON array of strings (built by the bridge, never raw server text). */
+    fun sendSuggestionsResponse(reqId: String, suggestions: org.json.JSONArray) {
+        val id = org.json.JSONObject.quote(reqId)
+        webView.evaluateJavascript("window.onOnyxSuggestionsReceived && window.onOnyxSuggestionsReceived($id, $suggestions);", null)
+    }
+
+    fun sendFeedResponse(reqId: String, text: String?) {
+        val id = org.json.JSONObject.quote(reqId)
+        val body = if (text == null) "null" else org.json.JSONObject.quote(text)
+        webView.evaluateJavascript("window.onOnyxFeedReceived && window.onOnyxFeedReceived($id, $body);", null)
     }
 
     fun setSearchEngine(engine: String) {
+        val key = engine.trim().lowercase()
+        if (key !in SUPPORTED_ENGINES) return
         val prefs = getSharedPreferences("onyx_prefs", MODE_PRIVATE)
-        prefs.edit().putString("search_engine", engine.lowercase()).apply()
+        prefs.edit().putString("search_engine", key).apply()
+        val quoted = org.json.JSONObject.quote(key)
         webView.evaluateJavascript("""
-            window.postMessage({ type: 'onyx-search-engine-changed', engine: '${engine.lowercase()}' }, '*');
+            window.postMessage({ type: 'onyx-search-engine-changed', engine: $quoted }, '*');
             if (typeof window.onOnyxSearchEngineChanged === 'function') {
-                window.onOnyxSearchEngineChanged('${engine.lowercase()}');
+                window.onOnyxSearchEngineChanged($quoted);
             }
             if (typeof window.setSearchEngine === 'function') {
-                window.setSearchEngine('${engine.lowercase()}');
+                window.setSearchEngine($quoted);
             }
         """.trimIndent(), null)
+    }
+
+    companion object {
+        val SUPPORTED_ENGINES = setOf("duckduckgo", "google", "brave", "perplexity", "kagi", "bing")
+        const val ASSET_PREFIX = "file:///android_asset/"
     }
 
     fun selectWorkspace(id: String, url: String) {
