@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onyx I/O Verification Suite</title>
+<style>
+  :root {
+    --bg: #070709;
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.16);
+    --accent-blue: #60A5FA;
+    --accent-green: #34D399;
+    --text: #ffffff;
+    --text-muted: #a1a1aa;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .container {
+    max-width: 720px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px 0; }
+  p.sub { font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+  .btn-accent {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: var(--accent-blue);
+  }
+  .btn-accent:hover {
+    background: rgba(96, 165, 250, 0.25);
+    border-color: rgba(96, 165, 250, 0.50);
+  }
+  .btn-green {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: rgba(52, 211, 153, 0.35);
+    color: var(--accent-green);
+  }
+  .btn-green:hover {
+    background: rgba(52, 211, 153, 0.25);
+    border-color: rgba(52, 211, 153, 0.50);
+  }
+  input[type="file"] {
+    display: none;
+  }
+  .file-label {
+    border: 1.5px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .file-label:hover {
+    border-color: var(--accent-blue);
+    color: #fff;
+    background: rgba(96, 165, 250, 0.05);
+  }
+  .output {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    color: var(--text-muted);
+    min-height: 48px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div>
+    <h1>Onyx I/O Engine Verification</h1>
+    <p class="sub">Native macOS WebKit Upload & Download Test Rig</p>
+  </div>
+
+  <div class="grid">
+    <!-- UPLOADS -->
+    <div class="card">
+      <div class="card-title">
+        <span>⬆</span> File Upload Testing
+      </div>
+      <p style="font-size:12px; color:var(--text-muted); margin:0;">
+        Tests WKUIDelegate runOpenPanelWith sheet modal integration.
+      </p>
+
+      <label class="file-label" for="single-upload">
+        Choose Single File
+      </label>
+      <input type="file" id="single-upload">
+
+      <label class="file-label" for="multi-upload">
+        Choose Multiple Files
+      </label>
+      <input type="file" id="multi-upload" multiple>
+
+      <div class="output" id="upload-status">No files selected yet.</div>
+    </div>
+
+    <!-- DOWNLOADS -->
+    <div class="card">
+      <div class="card-title">
+        <span>⬇</span> File Download Testing
+      </div>
+      <p style="font-size:12px; color:var(--text-muted); margin:0;">
+        Tests WKDownloadDelegate, ~/Downloads routing, HUD toast & toolbar badge.
+      </p>
+
+      <button class="btn btn-accent" id="dl-text">
+        Download Sample Text (.txt)
+      </button>
+
+      <button class="btn btn-green" id="dl-data">
+        Download 500KB Binary Blob (.bin)
+      </button>
+
+      <button class="btn" id="dl-image">
+        Generate & Download Canvas Image (.png)
+      </button>
+
+      <div class="output" id="download-status">Ready to download.</div>
+    </div>
+  </div>
+
+  <!-- System Dialogs -->
+  <div class="card">
+    <div class="card-title">
+      <span>💬</span> Native Dialog Testing
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <button class="btn" onclick="alert('Onyx Alert: Upload succeeded smoothly!')">Trigger JS Alert</button>
+      <button class="btn" onclick="const ok = confirm('Do you want to proceed with this action?'); document.getElementById('dialog-status').textContent = 'Confirm response: ' + ok;">Trigger JS Confirm</button>
+      <button class="btn" onclick="const val = prompt('Enter your name or note:', 'Onyx User'); document.getElementById('dialog-status').textContent = 'Prompt response: ' + (val !== null ? val : '(cancelled)');">Trigger JS Prompt</button>
+    </div>
+    <div class="output" id="dialog-status">Dialog status will appear here.</div>
+  </div>
+</div>
+
+<script>
+  const single = document.getElementById('single-upload');
+  const multi = document.getElementById('multi-upload');
+  const uploadStatus = document.getElementById('upload-status');
+
+  // Drag and drop support on file labels
+  document.querySelectorAll('.file-label').forEach(label => {
+    label.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      label.style.borderColor = 'var(--accent-blue)';
+      label.style.background = 'rgba(96, 165, 250, 0.1)';
+    });
+    label.addEventListener('dragleave', () => {
+      label.style.borderColor = '';
+      label.style.background = '';
+    });
+    label.addEventListener('drop', (e) => {
+      e.preventDefault();
+      label.style.borderColor = '';
+      label.style.background = '';
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        uploadStatus.textContent = describeFiles(e.dataTransfer.files);
+      }
+    });
+  });
+
+  function describeFiles(files) {
+    if (!files || files.length === 0) return 'No files selected.';
+    let txt = 'Selected ' + files.length + ' file(s):\n';
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      txt += '• ' + f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB, ' + (f.type || 'unknown') + ')\n';
+    }
+    return txt;
+  }
+
+  single.addEventListener('change', (e) => {
+    uploadStatus.textContent = describeFiles(e.target.files);
+  });
+
+  multi.addEventListener('change', (e) => {
+    uploadStatus.textContent = describeFiles(e.target.files);
+  });
+
+  document.getElementById('dl-text').addEventListener('click', () => {
+    const text = "Onyx Browser - High-speed native WebKit with Apple design.\nCreated at: " + new Date().toISOString() + "\nStatus: Ultra-low RAM engine active.";
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'onyx_sample_notes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('download-status').textContent = 'Triggered download: onyx_sample_notes.txt';
+  });
+
+  document.getElementById('dl-data').addEventListener('click', () => {
+    const buf = new Uint8Array(500 * 1024);
+    for (let i = 0; i < buf.length; i++) buf[i] = (i & 0xFF);
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'onyx_payload_500kb.bin';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('download-status').textContent = 'Triggered download: onyx_payload_500kb.bin (500 KB)';
+  });
+
+  document.getElementById('dl-image').addEventListener('click', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#070709';
+    ctx.fillRect(0, 0, 400, 200);
+    ctx.fillStyle = '#60A5FA';
+    ctx.font = 'bold 24px -apple-system, sans-serif';
+    ctx.fillText('✦ Onyx Browser', 40, 90);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillText('High performance native macOS runtime', 40, 130);
+
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'onyx_generated_banner.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      document.getElementById('download-status').textContent = 'Triggered download: onyx_generated_banner.png';
+    }, 'image/png');
+  });
+</script>
+</body>
+</html>

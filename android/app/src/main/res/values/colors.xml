@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="onyx_bg">#070709</color>
+    <color name="onyx_surface">#0d0d12</color>
+    <color name="onyx_surface_hover">#16161d</color>
+    <color name="onyx_surface_active">#1f1f28</color>
+    <color name="onyx_border">#1c1c24</color>
+    <color name="onyx_border_focus">#383848</color>
+    
+    <color name="onyx_text">#FFFFFF</color>
+    <color name="onyx_text_muted">#A1A1AA</color>
+    <color name="onyx_text_subtle">#71717A</color>
+    <color name="onyx_text_dim">#52525B</color>
+    
+    <color name="onyx_green">#10B981</color>
+    <color name="onyx_green_glow">#3310B981</color>
+    <color name="onyx_purple">#A855F7</color>
+    <color name="onyx_blue">#3B82F6</color>
+</resources>

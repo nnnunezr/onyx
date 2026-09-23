@@ -1,0 +1,4044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070709">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Onyx</title>
+<style>
+  :root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+
+    --bg: #070709;
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --surface-active: rgba(255, 255, 255, 0.12);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.18);
+    --border-focus: rgba(255, 255, 255, 0.35);
+
+    --text: #ffffff;
+    --text-muted: #a1a1aa;
+    --text-subtle: #71717a;
+    --text-dim: #52525b;
+
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+
+  @media (max-width: 768px) {
+    html, body {
+      justify-content: flex-start;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-top: max(var(--space-6), calc(var(--sat) + var(--space-4)));
+      padding-bottom: max(var(--space-12), calc(var(--sab) + 76px));
+      padding-left: max(var(--space-4), var(--sal));
+      padding-right: max(var(--space-4), var(--sar));
+    }
+  }
+
+  .canvas-container {
+    position: relative;
+    max-width: 580px;
+    width: 88%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  /* Anime.js-Inspired Pure CSS Startup Entrance (Fluid, Robust, GPU-Accelerated) */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: smoothEntrance 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .delay-1 { animation-delay: 30ms; }
+  .delay-2 { animation-delay: 90ms; }
+  .delay-3 { animation-delay: 150ms; }
+
+  @keyframes smoothEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes cardEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+
+
+  /* Header Branding */
+  .header-area {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Thinking Orb Canvas (Jakub Antalik AI Indicator) */
+  .orb-container {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    margin-bottom: var(--space-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: transform 300ms var(--ease-out);
+  }
+
+  .orb-container:hover {
+    transform: scale(1.08);
+  }
+
+  .orb-canvas {
+    width: 64px;
+    height: 64px;
+    display: block;
+    border-radius: 50%;
+  }
+
+  .orb-pill {
+    position: absolute;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    white-space: nowrap;
+  }
+
+  .orb-container:active {
+    transform: scale(0.92);
+    transition: transform 80ms ease;
+  }
+
+  .orb-pill.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(2px);
+  }
+
+  .title {
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    margin: 0;
+    color: var(--text);
+    line-height: 1.1;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .title:hover {
+    opacity: 0.88;
+    transform: scale(1.02);
+  }
+
+  /* Dynamic Greeting Banner (Lasts 12s, then gracefully dissolves) */
+  .greeting-banner {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: -0.01em;
+    margin: 0;
+    max-height: 24px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: 
+      opacity 1200ms var(--ease-out),
+      transform 1200ms var(--ease-out),
+      max-height 1200ms var(--ease-out),
+      margin-top 1200ms var(--ease-out);
+    margin-top: var(--space-1);
+  }
+
+  .greeting-banner.dissolve {
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+    margin-top: 0;
+    pointer-events: none;
+  }
+
+  /* Active Profile Capsule (Apple-style pill) */
+  .startpage-profile-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    margin-top: var(--space-1);
+    user-select: none;
+    transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease, color 160ms ease;
+  }
+
+  .startpage-profile-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-hover);
+    color: var(--text);
+    transform: translateY(-1px);
+  }
+
+  .startpage-profile-pill:active {
+    transform: scale(0.96);
+  }
+
+  .profile-indicator-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+    transition: background-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .profile-indicator-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: inherit;
+    letter-spacing: -0.01em;
+  }
+
+  .profile-indicator-chevron {
+    width: 9px;
+    height: 9px;
+    stroke: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
+    margin-left: 1px;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .startpage-profile-pill:hover .profile-indicator-chevron {
+    opacity: 0.90;
+    transform: translateY(1px);
+  }
+
+  /* Command Palette Search Box (Apple 24px Capsule Curve) */
+  /* Command Palette Search Box (Apple 24px Capsule Curve) */
+  .search-wrapper {
+    width: 100%;
+    position: relative;
+    border-radius: 26px;
+    --engine-glow: radial-gradient(
+      ellipse 85% 65% at 50% 50%,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(228, 228, 231, 0.16) 35%,
+      rgba(161, 161, 170, 0.08) 65%,
+      transparent 100%
+    );
+    --engine-rim: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.20) 35%,
+      rgba(255, 255, 255, 0.06) 70%,
+      rgba(255, 255, 255, 0.16) 100%
+    );
+    --engine-border: rgba(255, 255, 255, 0.35);
+    --engine-shadow: 0 0 24px -2px rgba(255, 255, 255, 0.25);
+    --engine-color: #ffffff;
+  }
+
+  /* Apple Ambient Aura Glow (Tones of Active Engine, or Obsidian / Pure White default) */
+  .siri-aura-glow {
+    position: absolute;
+    inset: -6px;
+    border-radius: 32px;
+    background: var(--engine-glow);
+    filter: blur(18px);
+    opacity: 0;
+    transform: scale(0.99);
+    transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out), filter 320ms var(--ease-out), background 320ms ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Specular Rim */
+  .siri-specular-rim {
+    position: absolute;
+    inset: -1px;
+    border-radius: 26px;
+    background: var(--engine-rim);
+    opacity: 0;
+    transition: opacity 280ms var(--ease-out), background 280ms ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* When an engine is active, aura is gently illuminated even before focus */
+  .search-wrapper.has-engine .siri-aura-glow {
+    opacity: 0.52;
+    filter: blur(20px);
+    transform: scale(1.005);
+    animation: engineAuraPulse 3.5s ease-in-out infinite alternate;
+  }
+
+  .search-wrapper.has-engine .siri-specular-rim {
+    opacity: 0.65;
+  }
+
+  .search-wrapper:focus-within .siri-aura-glow {
+    opacity: 0.68;
+    filter: blur(24px);
+    transform: scale(1.02);
+    animation: engineAuraPulse 3s ease-in-out infinite alternate;
+  }
+
+  .search-wrapper.has-engine:focus-within .siri-aura-glow {
+    opacity: 0.90;
+    filter: blur(28px);
+    transform: scale(1.025);
+  }
+
+  .search-wrapper:focus-within .siri-specular-rim {
+    opacity: 0.82;
+  }
+
+  @keyframes engineAuraPulse {
+    0% {
+      opacity: 0.50;
+      filter: blur(18px);
+    }
+    100% {
+      opacity: 0.85;
+      filter: blur(28px);
+    }
+  }
+
+  .search-box {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 50px;
+    background: rgba(14, 16, 22, 0.76);
+    backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: 25px; /* Apple 24px+ round curve */
+    padding: 0 var(--space-10) 0 var(--space-10);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 200ms ease, background-color 200ms ease, box-shadow 260ms var(--ease-out);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .search-wrapper.has-engine .search-box {
+    border-color: var(--engine-border);
+  }
+
+  .search-box:hover {
+    border-color: var(--border-hover);
+    background-color: rgba(18, 20, 28, 0.82);
+  }
+
+  .search-box:focus {
+    border-color: var(--engine-border);
+    background-color: rgba(10, 12, 18, 0.92);
+    box-shadow:
+      0 0 0 1px var(--engine-border),
+      var(--engine-shadow),
+      0 12px 40px rgba(0, 0, 0, 0.75),
+      inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  }
+
+  .search-box::placeholder {
+    color: var(--text-dim);
+    transition: color 180ms ease;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    stroke: var(--text-subtle);
+    pointer-events: none;
+    transition: stroke 200ms ease;
+    z-index: 3;
+  }
+
+  .search-wrapper:focus-within .search-icon {
+    stroke: var(--engine-color, #ffffff);
+  }
+
+  .search-badge {
+    position: absolute;
+    right: var(--space-4);
+    top: 50%;
+    transform: translateY(-50%);
+    height: 26px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+    z-index: 3;
+  }
+
+  .search-badge:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-color: var(--border-hover);
+  }
+
+  /* Browsing Suggestions Dropdown (Apple Obsidian Style) */
+  .suggestions-dropdown {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    right: 0;
+    background: rgba(16, 18, 24, 0.95);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    z-index: 1000;
+    overflow: hidden;
+    padding: var(--space-1) 0 0 0;
+    margin: 0;
+    animation: suggFadeIn 140ms ease-out;
+  }
+
+  @keyframes suggFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 var(--space-1);
+    max-height: 288px;
+    overflow-y: auto;
+  }
+
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    user-select: none;
+    transition: background 100ms ease, color 100ms ease;
+  }
+
+  .suggestion-item:hover,
+  .suggestion-item.selected {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+
+  .suggestion-item.selected .suggestion-icon {
+    opacity: 0.95;
+    color: #ffffff;
+  }
+
+  .suggestion-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: var(--space-3);
+    flex-shrink: 0;
+    opacity: 0.60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .suggestion-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+  }
+
+  .suggestion-title {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .suggestion-badge {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-left: var(--space-3);
+    flex-shrink: 0;
+  }
+
+  .suggestions-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 var(--space-3);
+    background: rgba(0, 0, 0, 0.28);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: var(--space-1);
+  }
+
+  .suggestions-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.40);
+    user-select: none;
+  }
+
+  .suggestions-engine-badge {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.70);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px var(--space-2);
+    border-radius: 4px;
+    user-select: none;
+  }
+
+  /* Apple-Crafted Workspaces Deck */
+  /* Apple-Crafted Deck Container (Workspaces & Live News) */
+  .deck-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .deck-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-1);
+    min-height: 28px;
+  }
+
+  /* Segmented Pill Switcher (macOS / iOS 18 Design) */
+  .deck-segmented-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2px;
+  }
+
+  .deck-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 160ms var(--ease-out);
+    user-select: none;
+  }
+
+  .deck-tab-btn:hover {
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .deck-tab-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .deck-tab-btn svg {
+    stroke: currentColor;
+    flex-shrink: 0;
+  }
+
+  .live-news-badge {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+    animation: livePulse 2s infinite ease-in-out;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 0.9; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .deck-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .deck-hint {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+  }
+
+  /* News Filters & Meta in Header */
+  .news-header-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .news-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 7px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    user-select: none;
+    transition: all 140ms ease;
+    white-space: nowrap;
+  }
+
+  .news-status-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: #34d399;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.7);
+    flex-shrink: 0;
+  }
+
+  .news-status-pill.updating .news-status-dot {
+    background-color: #60a5fa;
+    box-shadow: 0 0 6px rgba(96, 165, 250, 0.8);
+    animation: livePulse 800ms infinite ease-in-out;
+  }
+
+  .news-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+  }
+
+  .news-filter-btn {
+    height: 20px;
+    padding: 0 7px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 140ms ease;
+  }
+
+  .news-filter-btn:hover {
+    color: var(--text-muted);
+  }
+
+  .news-filter-btn.active {
+    background: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .news-refresh-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 140ms ease;
+  }
+
+  .news-refresh-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-hover);
+  }
+
+  .news-refresh-btn.spinning svg {
+    animation: rotateRefresh 600ms linear infinite;
+  }
+
+  @keyframes rotateRefresh {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Deck Views Container & Transitions */
+  .deck-view {
+    width: 100%;
+    animation: deckFadeIn 200ms var(--ease-out) forwards;
+  }
+
+  .deck-view.hidden {
+    display: none !important;
+  }
+
+  @keyframes deckFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Workspaces Grid */
+  .workspaces-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  .workspace-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    min-height: 96px;
+    min-width: 0;
+    transition: 
+      background-color 160ms ease, 
+      border-color 160ms ease, 
+      transform 160ms var(--ease-out), 
+      box-shadow 160ms ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .workspace-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  }
+
+  .workspace-card:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  .workspace-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .workspace-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 160ms ease, border-color 160ms ease;
+  }
+
+  .workspace-icon svg {
+    width: 15px;
+    height: 15px;
+    stroke: var(--text-muted);
+    fill: none;
+    transition: stroke 160ms ease;
+  }
+
+  .workspace-card:hover .workspace-icon {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .workspace-card:hover .workspace-icon svg {
+    stroke: var(--text);
+  }
+
+  .workspace-key {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+  }
+
+  .workspace-card:hover .workspace-key {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-hover);
+  }
+
+  .workspace-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: var(--space-3);
+    min-width: 0;
+  }
+
+  .workspace-title {
+    font-size: 13px;
+    font-weight: 590;
+    color: var(--text);
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .workspace-desc {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-subtle);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .workspace-card:hover .workspace-desc {
+    color: var(--text-muted);
+  }
+
+  /* Live News Grid */
+  .news-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    width: 100%;
+  }
+
+  .news-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    min-height: 96px;
+    min-width: 0;
+    transition: 
+      background-color 160ms ease, 
+      border-color 160ms ease, 
+      transform 160ms var(--ease-out), 
+      box-shadow 160ms ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .news-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  }
+
+  .news-card:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  .news-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .news-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .news-tag-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .news-tag-dot.ai { background-color: #a78bfa; box-shadow: 0 0 5px rgba(167, 139, 250, 0.6); }
+  .news-tag-dot.markets { background-color: #34d399; box-shadow: 0 0 5px rgba(52, 211, 153, 0.6); }
+  .news-tag-dot.tech { background-color: #38bdf8; box-shadow: 0 0 5px rgba(56, 189, 248, 0.6); }
+
+  .news-card:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.4);
+    outline-offset: 2px;
+  }
+
+  /* Skeleton Loading Cards */
+  .news-card-skeleton {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    min-height: 96px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .news-card-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.04),
+      transparent
+    );
+    animation: skeletonShimmer 1.4s infinite;
+  }
+
+  @keyframes skeletonShimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .skeleton-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .skeleton-bar.short { width: 35%; }
+  .skeleton-bar.medium { width: 65%; }
+  .skeleton-bar.full { width: 92%; }
+
+  .skeleton-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .news-time-badge {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    font-weight: 450;
+    color: var(--text-dim);
+  }
+
+  .news-body {
+    margin-top: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex-grow: 1;
+    min-width: 0;
+  }
+
+  .news-headline {
+    font-size: 12px;
+    font-weight: 560;
+    color: var(--text);
+    letter-spacing: -0.015em;
+    line-height: 1.32;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .news-card:hover .news-headline {
+    color: #ffffff;
+  }
+
+  .news-footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: var(--space-2);
+    font-size: 10px;
+    color: var(--text-dim);
+    transition: color 140ms ease;
+  }
+
+  .news-footer svg {
+    width: 10px;
+    height: 10px;
+    stroke: currentColor;
+    flex-shrink: 0;
+  }
+
+  .news-card:hover .news-footer {
+    color: var(--text-muted);
+  }
+
+  /* Quick Bangs Filter Pills (Horizontal Scrolling Carousel) */
+  .quick-bangs-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-1) 0;
+  }
+  .quick-bangs-bar::-webkit-scrollbar { display: none; }
+
+  .bang-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 var(--space-3);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .bang-chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .bang-chip:active {
+    transform: scale(0.94);
+    background: rgba(255, 255, 255, 0.14);
+  }
+  .bang-chip.active {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.38);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  /* Mobile Workflow Bar (Docked at Viewport Bottom) */
+  .mobile-workflow-bar {
+    display: none;
+  }
+
+  /* Mobile Bottom Sheets & Drawers */
+  .mobile-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 280ms var(--ease-out);
+  }
+  .mobile-sheet-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 84vh;
+    background: #0d0d12;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 24px 24px 0 0;
+    z-index: 1001;
+    padding: var(--space-4) var(--space-5) calc(var(--space-8) + var(--sab));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    transform: translateY(105%);
+    transition: transform 320ms var(--ease-drawer);
+    box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.65);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-sheet.open {
+    transform: translateY(0);
+  }
+
+  .mobile-sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.24);
+    margin: 0 auto var(--space-1);
+  }
+
+  .mobile-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-sheet-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .mobile-sheet-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease, transform 120ms ease;
+  }
+  .mobile-sheet-close:active {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    transform: scale(0.92);
+  }
+
+  .mobile-sheet-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .mobile-workspace-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--space-3);
+    cursor: pointer;
+    transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+    touch-action: manipulation;
+  }
+  .mobile-workspace-card:active {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: var(--border-hover);
+    transform: scale(0.98);
+  }
+
+  .mobile-ws-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--space-2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text);
+  }
+  .mobile-ws-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-ws-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mobile-ws-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-ws-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .mobile-ws-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    padding: 2px 8px;
+    border-radius: 9999px;
+  }
+
+  .mobile-ws-action {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    padding: 2px 6px;
+  }
+
+  .mobile-spark-prompts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .spark-prompt-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--space-2);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+    touch-action: manipulation;
+  }
+  .spark-prompt-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(0.98);
+  }
+
+  @media (max-width: 768px) {
+    .mobile-workflow-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(58px + var(--sab));
+      padding-bottom: var(--sab);
+      background: rgba(10, 10, 14, 0.92);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border-top: 1px solid rgba(255, 255, 255, 0.09);
+      z-index: 100;
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .mobile-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      flex: 1;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 180ms var(--ease-out), transform 120ms var(--ease-out);
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      padding: 0;
+    }
+
+    .mobile-nav-item svg {
+      width: 19px;
+      height: 19px;
+      stroke: currentColor;
+      transition: transform 180ms var(--ease-out);
+    }
+
+    .mobile-nav-item:active {
+      transform: scale(0.92);
+      color: #ffffff;
+    }
+
+    .mobile-nav-item.active {
+      color: #ffffff;
+    }
+
+    .mobile-nav-item.active svg {
+      transform: translateY(-1px);
+    }
+
+    .mobile-nav-accent {
+      position: relative;
+      color: #ffffff;
+    }
+
+    .mobile-ai-glow {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, transparent 70%);
+      top: 4px;
+      pointer-events: none;
+      animation: pulseAura 2.5s infinite ease-in-out;
+    }
+
+    @keyframes pulseAura {
+      0%, 100% { transform: scale(0.9); opacity: 0.5; }
+      50% { transform: scale(1.15); opacity: 0.9; }
+    }
+
+    .workspaces-grid,
+    .news-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .deck-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-3);
+    }
+
+    .deck-actions {
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .news-header-meta {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
+  @media (max-width: 580px) {
+    .canvas-container {
+      width: 100%;
+      gap: var(--space-4);
+    }
+
+    .title {
+      font-size: 28px;
+    }
+
+    .search-wrapper {
+      margin-bottom: var(--space-1);
+    }
+
+    .favorites-grid {
+      gap: var(--space-3);
+    }
+
+    .favorite-tile {
+      width: 48px;
+      height: 48px;
+    }
+
+    .hint-line {
+      display: none;
+    }
+  }
+
+  /* Apple-Style Favorites Grid */
+  .favorites-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    width: 100%;
+  }
+
+  .favorites-grid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+  }
+
+  .favorite-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 160ms var(--ease-out);
+  }
+
+  .favorite-item:hover {
+    transform: translateY(-2px);
+  }
+
+  .favorite-item:active {
+    transform: translateY(0) scale(0.96);
+  }
+
+  .favorite-tile {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px; /* Apple squircle radius */
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .favorite-item:hover .favorite-tile {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .favorite-tile svg {
+    width: 22px;
+    height: 22px;
+    stroke: var(--text-muted);
+    fill: none;
+    stroke-width: 1.75;
+    transition: stroke 160ms ease, transform 160ms ease;
+  }
+
+  .favorite-item:hover .favorite-tile svg {
+    stroke: var(--text);
+  }
+
+  .favorite-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: -0.01em;
+    transition: color 160ms ease;
+  }
+
+  .favorite-item:hover .favorite-title {
+    color: var(--text);
+  }
+
+  /* Discreet Whisper Hint (Zero AI Slop) */
+  .hint-line {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .hint-line kbd {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--text-subtle);
+  }
+</style>
+</head>
+<body>
+
+<div class="canvas-container">
+  <!-- Header -->
+  <div class="header-area fade-in delay-1">
+    <!-- Jakub Antalik Thinking Orb (Dotted 3D AI Canvas) -->
+    <div class="orb-container" id="orb-container" title="Thinking Orb · Click to cycle states">
+      <canvas id="thinking-orb-canvas" class="orb-canvas" width="128" height="128"></canvas>
+      <div id="orb-pill" class="orb-pill">breathing</div>
+    </div>
+    
+    <h1 class="title" id="onyx-title" title="Onyx · Click to replay startup animation">Onyx</h1>
+    
+    <!-- Time-aware Greeting Banner (dissolves cleanly after 12s) -->
+    <div id="greeting-banner" class="greeting-banner">Good evening</div>
+
+    <!-- Active Workspace / Profile Capsule (Expanding on Hover) -->
+    <div id="startpage-profile-pill" class="startpage-profile-pill" title="Workspace: Click to switch profiles (⌘⌥P)" onclick="if(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openProfileManager) { window.webkit.messageHandlers.openProfileManager.postMessage({}); }">
+      <span class="profile-indicator-dot" id="startpage-profile-dot"></span>
+      <span class="profile-indicator-name" id="startpage-profile-name">Personal</span>
+      <svg class="profile-indicator-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Command Palette / Search Bar -->
+  <div class="search-wrapper fade-in delay-2" id="search-wrapper">
+    <div class="siri-aura-glow" id="siri-aura-glow" aria-hidden="true"></div>
+    <div class="siri-specular-rim" id="siri-specular-rim" aria-hidden="true"></div>
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    <input 
+      type="text" 
+      id="search-input" 
+      class="search-box" 
+      placeholder="Search or enter address"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      autofocus
+    >
+    <button type="button" class="search-badge" id="search-submit-btn" aria-label="Submit search" title="Search">↵</button>
+    <!-- Browsing Suggestions Dropdown -->
+    <div id="suggestions-dropdown" class="suggestions-dropdown" style="display: none;" role="listbox">
+      <div id="suggestions-list" class="suggestions-list"></div>
+      <div class="suggestions-footer">
+        <span class="suggestions-hint">↑↓ Navigate · ↵ Select · esc Dismiss</span>
+        <div class="suggestions-engine-badge" id="suggestions-engine-badge">DuckDuckGo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Filter Pills (Horizontal Scroll on Mobile) -->
+  <div class="quick-bangs-bar fade-in delay-2" id="quick-bangs-bar">
+    <button type="button" class="bang-chip" data-engine="r" title="AI Deep Research">Research</button>
+    <button type="button" class="bang-chip" data-engine="p" title="Perplexity Search">Perplexity</button>
+    <button type="button" class="bang-chip" data-engine="g" title="Google Search">Google</button>
+    <button type="button" class="bang-chip" data-engine="yt" title="YouTube Ad-Free">YouTube</button>
+    <button type="button" class="bang-chip" data-engine="gh" title="GitHub Repos">GitHub</button>
+    <button type="button" class="bang-chip" data-engine="k" title="Kagi Search">Kagi</button>
+    <button type="button" class="bang-chip" data-engine="w" title="Wikipedia Encyclopedia">Wiki</button>
+  </div>
+
+  <!-- Apple-Crafted Deck Container (Workspaces & Live News) -->
+  <div class="deck-section fade-in delay-2">
+    <div class="deck-header">
+      <!-- Apple-style Segmented Pill Switcher -->
+      <div class="deck-segmented-pill" role="tablist">
+        <button type="button" class="deck-tab-btn active" id="deck-btn-workspaces" role="tab" aria-selected="true" title="Switch to Workspaces (Press W)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>Workspaces</span>
+        </button>
+        <button type="button" class="deck-tab-btn" id="deck-btn-news" role="tab" aria-selected="false" title="Switch to Live News (Press N)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path>
+            <path d="M18 14h-8"></path>
+            <path d="M15 18h-5"></path>
+            <path d="M10 6h8v4h-8V6Z"></path>
+          </svg>
+          <span>News</span>
+          <span class="live-news-badge" title="Live Updates"></span>
+        </button>
+      </div>
+
+      <!-- Contextual Header Meta / Actions -->
+      <div class="deck-actions">
+        <!-- Workspaces Hint -->
+        <span class="deck-hint" id="deck-workspaces-hint">⌘1 – ⌘3</span>
+
+        <!-- News Category Pills & Refresh (hidden by default) -->
+        <div class="news-header-meta" id="deck-news-meta" style="display: none;">
+          <div class="news-status-pill" id="news-status-pill" title="Live news automatically updated daily">
+            <span class="news-status-dot"></span>
+            <span id="news-status-text">Today</span>
+          </div>
+          <div class="news-filters">
+            <button type="button" class="news-filter-btn active" data-cat="all">All</button>
+            <button type="button" class="news-filter-btn" data-cat="ai">AI</button>
+            <button type="button" class="news-filter-btn" data-cat="markets">Markets</button>
+            <button type="button" class="news-filter-btn" data-cat="tech">Tech</button>
+          </div>
+          <button type="button" class="news-refresh-btn" id="news-refresh-btn" title="Refresh Live News">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View 1: Workspaces Deck -->
+    <div class="deck-view" id="deck-view-workspaces">
+      <div class="workspaces-grid">
+        <!-- Workspace 1: Deep Research -->
+        <a class="workspace-card" data-url="https://duckduckgo.com/?q=&ia=chat" title="AI Research · ⌘1">
+          <div class="workspace-card-top">
+            <div class="workspace-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="workspace-key">⌘1</span>
+          </div>
+          <div class="workspace-meta">
+            <span class="workspace-title">AI Research</span>
+            <span class="workspace-desc">Canvas & Synthesis</span>
+          </div>
+        </a>
+
+        <!-- Workspace 2: Trading & Markets -->
+        <a class="workspace-card" data-url="https://web.ninjatrader.com/trading-mode" title="NinjaTrader · ⌘2">
+          <div class="workspace-card-top">
+            <div class="workspace-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="workspace-key">⌘2</span>
+          </div>
+          <div class="workspace-meta">
+            <span class="workspace-title">NinjaTrader</span>
+            <span class="workspace-desc">Futures Terminal</span>
+          </div>
+        </a>
+
+        <!-- Workspace 3: Academic & Campus -->
+        <a class="workspace-card" data-url="https://canvas.unapec.edu.do/" title="UNAPEC Virtual · ⌘3">
+          <div class="workspace-card-top">
+            <div class="workspace-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+            </div>
+            <span class="workspace-key">⌘3</span>
+          </div>
+          <div class="workspace-meta">
+            <span class="workspace-title">UNAPEC Virtual</span>
+            <span class="workspace-desc">Academic Portal</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- View 2: Live News Deck -->
+    <div class="deck-view hidden" id="deck-view-news">
+      <div class="news-grid" id="news-grid-container">
+        <!-- Dynamically rendered via renderNews() -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Apple-Style Pinned Grid (No Duplicates) -->
+  <div class="favorites-area fade-in delay-3">
+    <div class="section-label">
+      <span>Pinned</span>
+    </div>
+    <div class="favorites-grid">
+      <!-- Conflictly -->
+      <a class="favorite-item" data-url="https://www.conflictly.app/dashboard" title="Conflictly · ⌘4">
+        <div class="favorite-tile">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+        </div>
+        <span class="favorite-title">Conflictly</span>
+      </a>
+
+      <!-- Tradesea -->
+      <a class="favorite-item" data-url="https://app.tradesea.ai/trade" title="Tradesea · ⌘5">
+        <div class="favorite-tile">
+          <svg viewBox="0 0 24 24">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </div>
+        <span class="favorite-title">Tradesea</span>
+      </a>
+
+      <!-- Finviz -->
+      <a class="favorite-item" data-url="https://finviz.com" title="Finviz · ⌘6">
+        <div class="favorite-tile">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+        </div>
+        <span class="favorite-title">Finviz</span>
+      </a>
+
+      <!-- Perplexity -->
+      <a class="favorite-item" data-url="https://perplexity.ai" title="Perplexity">
+        <div class="favorite-tile">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 3v18M3 12h18"/>
+          </svg>
+        </div>
+        <span class="favorite-title">Perplexity</span>
+      </a>
+
+      <!-- GitHub -->
+      <a class="favorite-item" data-url="https://github.com" title="GitHub">
+        <div class="favorite-tile">
+          <svg viewBox="0 0 24 24">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="favorite-title">GitHub</span>
+      </a>
+    </div>
+
+    <!-- Whisper-Quiet Shortcut Cue -->
+    <div class="hint-line">
+      <span>Type <kbd>!r</kbd> for AI research</span>
+      <span style="opacity: 0.3;">&bull;</span>
+      <span>Press <kbd>/</kbd> to search</span>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Workflow Bar -->
+<nav class="mobile-workflow-bar" id="mobile-workflow-bar" aria-label="Mobile Navigation">
+  <button type="button" class="mobile-nav-item active" id="mob-nav-home" title="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    <span>Home</span>
+  </button>
+  <button type="button" class="mobile-nav-item" id="mob-nav-workspaces" title="Workspaces Drawer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+    </svg>
+    <span>Spaces</span>
+  </button>
+  <button type="button" class="mobile-nav-item mobile-nav-accent" id="mob-nav-ai" title="AI Spark Research">
+    <div class="mobile-ai-glow"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+    </svg>
+    <span>Spark</span>
+  </button>
+  <button type="button" class="mobile-nav-item" id="mob-nav-news" title="Live News">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+      <path d="M18 14h-8"/>
+      <path d="M15 18h-5"/>
+      <path d="M10 6h8v4h-8V6Z"/>
+    </svg>
+    <span>News</span>
+  </button>
+  <button type="button" class="mobile-nav-item" id="mob-nav-settings" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<!-- Mobile Workspaces Bottom Sheet Modal -->
+<div class="mobile-sheet-backdrop" id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+<div class="mobile-sheet" id="sheet-workspaces" role="dialog" aria-modal="true" aria-labelledby="sheet-workspaces-title">
+  <div class="mobile-sheet-handle"></div>
+  <div class="mobile-sheet-header">
+    <div class="mobile-sheet-title" id="sheet-workspaces-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+      <span>Workspaces</span>
+    </div>
+    <button type="button" class="mobile-sheet-close" onclick="closeAllSheets()" aria-label="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="mobile-sheet-cards">
+    <div class="mobile-workspace-card" onclick="OnyxBridge.switchWorkspace('ai', 'https://duckduckgo.com/?q=&ia=chat')">
+      <div class="mobile-ws-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="mobile-ws-info">
+        <div class="mobile-ws-title">AI Research</div>
+        <div class="mobile-ws-desc">Canvas & Synthesis</div>
+      </div>
+      <span class="mobile-ws-badge">Active</span>
+    </div>
+
+    <div class="mobile-workspace-card" onclick="OnyxBridge.switchWorkspace('trading', 'https://web.ninjatrader.com/trading-mode')">
+      <div class="mobile-ws-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="mobile-ws-info">
+        <div class="mobile-ws-title">NinjaTrader</div>
+        <div class="mobile-ws-desc">Futures Terminal</div>
+      </div>
+      <span class="mobile-ws-action">Switch</span>
+    </div>
+
+    <div class="mobile-workspace-card" onclick="OnyxBridge.switchWorkspace('unapec', 'https://canvas.unapec.edu.do/')">
+      <div class="mobile-ws-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <div class="mobile-ws-info">
+        <div class="mobile-ws-title">UNAPEC Virtual</div>
+        <div class="mobile-ws-desc">Academic Portal</div>
+      </div>
+      <span class="mobile-ws-action">Switch</span>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile AI Spark Quick Prompt Bottom Sheet -->
+<div class="mobile-sheet" id="sheet-ai" role="dialog" aria-modal="true" aria-labelledby="sheet-ai-title">
+  <div class="mobile-sheet-handle"></div>
+  <div class="mobile-sheet-header">
+    <div class="mobile-sheet-title" id="sheet-ai-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+      </svg>
+      <span>AI Quick Spark</span>
+    </div>
+    <button type="button" class="mobile-sheet-close" onclick="closeAllSheets()" aria-label="Close">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <p style="margin:0; font-size:13px; color:var(--text-muted);">One-tap instant deep research & synthesis prompts:</p>
+  <div class="mobile-spark-prompts">
+    <button type="button" class="spark-prompt-btn" onclick="executeSparkPrompt('Summarize today top technology and AI breakthroughs')">
+      <span>⚡ Today's top AI & tech breakthroughs</span>
+    </button>
+    <button type="button" class="spark-prompt-btn" onclick="executeSparkPrompt('Market overview: S&P 500, Nasdaq, and crypto trends')">
+      <span>📈 Financial markets & macro pulse</span>
+    </button>
+    <button type="button" class="spark-prompt-btn" onclick="executeSparkPrompt('Explain quantum error correction simply')">
+      <span>🔬 Explain complex topic simply</span>
+    </button>
+    <button type="button" class="spark-prompt-btn" onclick="executeSparkPrompt('Code review best practices and architecture checklist')">
+      <span>💻 Engineering architecture checklist</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  // Unified Native Bridge (Android Native & macOS WebKit & Web Fallback)
+  const OnyxBridge = {
+    isAndroid: !!(window.OnyxAndroid),
+    isMac: !!(window.webkit && window.webkit.messageHandlers),
+    openUrl(url) {
+      this.vibrate(10);
+      if (this.isAndroid && window.OnyxAndroid.openUrl) {
+        window.OnyxAndroid.openUrl(url);
+      } else if (this.isMac && window.webkit.messageHandlers.onyxNavigate) {
+        window.webkit.messageHandlers.onyxNavigate.postMessage({ url: url });
+      } else {
+        window.location.href = url;
+      }
+    },
+    switchWorkspace(id, url) {
+      this.vibrate(12);
+      closeAllSheets();
+      if (this.isAndroid && window.OnyxAndroid.switchWorkspace) {
+        window.OnyxAndroid.switchWorkspace(id, url || '');
+      } else if (this.isMac && window.webkit.messageHandlers.onyxSwitchWorkspace) {
+        window.webkit.messageHandlers.onyxSwitchWorkspace.postMessage({ id: id, url: url || '' });
+      } else if (url) {
+        window.location.href = url;
+      }
+    },
+    openSettings() {
+      this.vibrate(10);
+      closeAllSheets();
+      if (this.isAndroid && window.OnyxAndroid.openSettings) {
+        window.OnyxAndroid.openSettings();
+      } else if (this.isMac && window.webkit.messageHandlers.onyxOpenSettings) {
+        window.webkit.messageHandlers.onyxOpenSettings.postMessage({});
+      } else {
+        window.location.href = 'settings.html';
+      }
+    },
+    vibrate(ms = 10) {
+      try {
+        if (this.isAndroid && window.OnyxAndroid.vibrate) {
+          window.OnyxAndroid.vibrate(ms);
+        } else if (navigator.vibrate) {
+          navigator.vibrate(ms);
+        }
+      } catch (e) {}
+    }
+  };
+
+  function openSheet(id) {
+    closeAllSheets();
+    const sheet = document.getElementById(id);
+    const backdrop = document.getElementById('sheet-backdrop');
+    if (sheet && backdrop) {
+      backdrop.classList.add('open');
+      sheet.classList.add('open');
+    }
+  }
+
+  function closeAllSheets() {
+    document.getElementById('sheet-backdrop')?.classList.remove('open');
+    document.querySelectorAll('.mobile-sheet').forEach(s => s.classList.remove('open'));
+  }
+
+  function executeSparkPrompt(prompt) {
+    OnyxBridge.vibrate(14);
+    closeAllSheets();
+    const targetUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(prompt) + '&ia=chat';
+    OnyxBridge.openUrl(targetUrl);
+  }
+
+  const searchInput = document.getElementById('search-input');
+  const greetingBanner = document.getElementById('greeting-banner');
+
+  // Dynamic Time-aware Greeting
+  function updateGreeting() {
+    const hour = new Date().getHours();
+    let greeting = "Good evening";
+    if (hour >= 5 && hour < 12) {
+      greeting = "Good morning";
+    } else if (hour >= 12 && hour < 17) {
+      greeting = "Good afternoon";
+    } else {
+      greeting = "Good evening";
+    }
+    greetingBanner.textContent = greeting;
+  }
+
+  updateGreeting();
+
+  // Greeting lasts exactly 12 seconds, then dissolves smoothly
+  setTimeout(() => {
+    if (greetingBanner) {
+      greetingBanner.classList.add('dissolve');
+    }
+  }, 12000);
+
+  // Cycling subtle search prompts
+  const searchPrompts = [
+    "Search or enter address",
+    "Where to next?",
+    "Explore or type a query",
+    "What's on your mind?",
+    "Curiosity starts here"
+  ];
+
+  function pickRandomPrompt() {
+    const randomMsg = searchPrompts[Math.floor(Math.random() * searchPrompts.length)];
+    searchInput.placeholder = randomMsg;
+  }
+
+  pickRandomPrompt();
+
+  // Dedicated Search Engine Modes & Reactive Ambient Aura Glow
+  const ENGINES = {
+    r: {
+      name: 'Research',
+      color: '#06b6d4',
+      placeholder: 'Deep Research with AI...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(6, 182, 212, 0.72) 0%, rgba(14, 165, 233, 0.40) 40%, rgba(6, 182, 212, 0.12) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(6, 182, 212, 0.85) 0%, rgba(56, 189, 248, 0.35) 45%, rgba(6, 182, 212, 0.10) 80%, rgba(14, 165, 233, 0.30) 100%)',
+      border: 'rgba(6, 182, 212, 0.65)',
+      shadow: '0 0 28px -2px rgba(6, 182, 212, 0.45), 0 0 54px -4px rgba(6, 182, 212, 0.18)',
+      buildUrl: (q) => 'https://duckduckgo.com/?q=' + encodeURIComponent(q) + '&ia=chat'
+    },
+    p: {
+      name: 'Perplexity',
+      color: '#22d3ee',
+      placeholder: 'Ask Perplexity anything...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(34, 211, 238, 0.72) 0%, rgba(99, 102, 241, 0.42) 40%, rgba(34, 211, 238, 0.14) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(34, 211, 238, 0.85) 0%, rgba(99, 102, 241, 0.40) 45%, rgba(34, 211, 238, 0.10) 80%, rgba(99, 102, 241, 0.30) 100%)',
+      border: 'rgba(34, 211, 238, 0.65)',
+      shadow: '0 0 28px -2px rgba(34, 211, 238, 0.45), 0 0 54px -4px rgba(99, 102, 241, 0.20)',
+      buildUrl: (q) => 'https://www.perplexity.ai/search?q=' + encodeURIComponent(q)
+    },
+    g: {
+      name: 'Google',
+      color: '#4285f4',
+      placeholder: 'Search Google...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(66, 133, 244, 0.70) 0%, rgba(52, 168, 83, 0.35) 35%, rgba(251, 188, 5, 0.18) 70%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(66, 133, 244, 0.85) 0%, rgba(52, 168, 83, 0.35) 45%, rgba(66, 133, 244, 0.10) 80%, rgba(234, 67, 53, 0.30) 100%)',
+      border: 'rgba(66, 133, 244, 0.65)',
+      shadow: '0 0 28px -2px rgba(66, 133, 244, 0.45), 0 0 54px -4px rgba(66, 133, 244, 0.18)',
+      buildUrl: (q) => 'https://www.google.com/search?q=' + encodeURIComponent(q)
+    },
+    yt: {
+      name: 'YouTube',
+      color: '#ef4444',
+      placeholder: 'Search YouTube (Ad-Free)...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(239, 68, 68, 0.75) 0%, rgba(220, 38, 38, 0.45) 40%, rgba(185, 28, 28, 0.16) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(239, 68, 68, 0.85) 0%, rgba(248, 113, 113, 0.40) 45%, rgba(239, 68, 68, 0.10) 80%, rgba(220, 38, 38, 0.30) 100%)',
+      border: 'rgba(239, 68, 68, 0.65)',
+      shadow: '0 0 28px -2px rgba(239, 68, 68, 0.45), 0 0 54px -4px rgba(239, 68, 68, 0.18)',
+      buildUrl: (q) => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q)
+    },
+    gh: {
+      name: 'GitHub',
+      color: '#a855f7',
+      placeholder: 'Search GitHub repositories...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(168, 85, 247, 0.72) 0%, rgba(192, 132, 252, 0.42) 40%, rgba(147, 51, 234, 0.15) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(168, 85, 247, 0.85) 0%, rgba(216, 180, 254, 0.40) 45%, rgba(168, 85, 247, 0.10) 80%, rgba(147, 51, 234, 0.30) 100%)',
+      border: 'rgba(168, 85, 247, 0.65)',
+      shadow: '0 0 28px -2px rgba(168, 85, 247, 0.45), 0 0 54px -4px rgba(168, 85, 247, 0.18)',
+      buildUrl: (q) => 'https://github.com/search?q=' + encodeURIComponent(q)
+    },
+    k: {
+      name: 'Kagi',
+      color: '#f59e0b',
+      placeholder: 'Search with Kagi...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(245, 158, 11, 0.70) 0%, rgba(251, 191, 36, 0.40) 40%, rgba(217, 119, 6, 0.15) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(245, 158, 11, 0.85) 0%, rgba(252, 211, 77, 0.40) 45%, rgba(245, 158, 11, 0.10) 80%, rgba(217, 119, 6, 0.30) 100%)',
+      border: 'rgba(245, 158, 11, 0.65)',
+      shadow: '0 0 28px -2px rgba(245, 158, 11, 0.45), 0 0 54px -4px rgba(245, 158, 11, 0.18)',
+      buildUrl: (q) => 'https://kagi.com/search?q=' + encodeURIComponent(q)
+    },
+    w: {
+      name: 'Wiki',
+      color: '#ffffff',
+      placeholder: 'Search Wikipedia...',
+      glow: 'radial-gradient(ellipse 90% 75% at 50% 50%, rgba(255, 255, 255, 0.65) 0%, rgba(226, 232, 240, 0.38) 40%, rgba(148, 163, 184, 0.14) 75%, transparent 100%)',
+      rim: 'linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(226, 232, 240, 0.40) 45%, rgba(255, 255, 255, 0.10) 80%, rgba(148, 163, 184, 0.30) 100%)',
+      border: 'rgba(255, 255, 255, 0.65)',
+      shadow: '0 0 28px -2px rgba(255, 255, 255, 0.45), 0 0 54px -4px rgba(255, 255, 255, 0.18)',
+      buildUrl: (q) => 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(q)
+    }
+  };
+
+  let activeEngine = null;
+  const searchWrapper = document.getElementById('search-wrapper');
+
+  function setEngineMode(engineKey) {
+    if (activeEngine === engineKey || !engineKey) {
+      activeEngine = null;
+      document.querySelectorAll('.bang-chip').forEach(c => c.classList.remove('active'));
+      if (searchWrapper) {
+        searchWrapper.classList.remove('has-engine');
+        searchWrapper.style.removeProperty('--engine-glow');
+        searchWrapper.style.removeProperty('--engine-rim');
+        searchWrapper.style.removeProperty('--engine-border');
+        searchWrapper.style.removeProperty('--engine-shadow');
+        searchWrapper.style.removeProperty('--engine-color');
+      }
+      searchInput.placeholder = "Search or enter address";
+      return;
+    }
+
+    const conf = ENGINES[engineKey];
+    if (!conf) return;
+
+    activeEngine = engineKey;
+    document.querySelectorAll('.bang-chip').forEach(c => {
+      c.classList.toggle('active', c.getAttribute('data-engine') === engineKey);
+    });
+
+    if (searchWrapper) {
+      searchWrapper.classList.add('has-engine');
+      searchWrapper.style.setProperty('--engine-glow', conf.glow);
+      searchWrapper.style.setProperty('--engine-rim', conf.rim);
+      searchWrapper.style.setProperty('--engine-border', conf.border);
+      searchWrapper.style.setProperty('--engine-shadow', conf.shadow);
+      searchWrapper.style.setProperty('--engine-color', conf.color);
+    }
+
+    searchInput.placeholder = conf.placeholder;
+    // CRITICAL: Do NOT insert characters into searchInput.value!
+    searchInput.focus();
+    triggerReaction('listening', 1600);
+  }
+
+  let defaultSearchEngine = localStorage.getItem('onyx_search_engine') || 'duckduckgo';
+
+  function setSearchEngine(engine) {
+    if (!engine) return;
+    defaultSearchEngine = engine.toLowerCase();
+    localStorage.setItem('onyx_search_engine', defaultSearchEngine);
+    const badge = document.getElementById('suggestions-engine-badge');
+    const names = {
+      duckduckgo: 'DuckDuckGo',
+      google: 'Google',
+      brave: 'Brave Search',
+      perplexity: 'Perplexity AI',
+      kagi: 'Kagi',
+      bing: 'Bing'
+    };
+    if (badge) {
+      badge.textContent = names[defaultSearchEngine] || 'Search';
+    }
+    if (!activeEngine) {
+      searchInput.placeholder = `Search with ${names[defaultSearchEngine] || 'Search'} or enter address`;
+    }
+  }
+
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'onyx-search-engine-changed') {
+      setSearchEngine(e.data.engine);
+    }
+  });
+  window.onOnyxSearchEngineChanged = function(engine) {
+    setSearchEngine(engine);
+  };
+  window.setSearchEngine = setSearchEngine;
+
+  function resolveQuery(input) {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+
+    // Dedicated Deep Research Bangs typed manually by user
+    if (trimmed.startsWith('!r ') || trimmed.startsWith('!ai ')) {
+      return 'https://duckduckgo.com/?q=' + encodeURIComponent(trimmed.slice(3).trim()) + '&ia=chat';
+    } else if (trimmed.startsWith('!d ')) {
+      return 'https://duckduckgo.com/?q=' + encodeURIComponent(trimmed.slice(3).trim()) + '&ia=chat';
+    } else if (trimmed.startsWith('!p ')) {
+      return 'https://www.perplexity.ai/search?q=' + encodeURIComponent(trimmed.slice(3).trim());
+    } else if (trimmed.startsWith('!g ')) {
+      return 'https://www.google.com/search?q=' + encodeURIComponent(trimmed.slice(3).trim());
+    } else if (trimmed.startsWith('!gh ')) {
+      return 'https://github.com/search?q=' + encodeURIComponent(trimmed.slice(4).trim());
+    } else if (trimmed.startsWith('!yt ')) {
+      return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(trimmed.slice(4).trim());
+    } else if (trimmed.startsWith('!w ')) {
+      return 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(trimmed.slice(3).trim());
+    } else if (trimmed.startsWith('!k ')) {
+      return 'https://kagi.com/search?q=' + encodeURIComponent(trimmed.slice(3).trim());
+    }
+
+    // Direct local / network URLs
+    if (trimmed.startsWith('file://')) return trimmed;
+    if (trimmed.startsWith('/')) return 'file://' + trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.includes('.') && !trimmed.includes(' ')) return 'https://' + trimmed;
+    if (trimmed.startsWith('localhost:') || trimmed === 'localhost') return 'http://' + trimmed;
+
+    // Active Engine Mode selected via Bang Chip
+    if (activeEngine && ENGINES[activeEngine]) {
+      return ENGINES[activeEngine].buildUrl(trimmed);
+    }
+
+    // Auto-detect research questions for Perplexity-like research mode via Duck.ai
+    const lower = trimmed.toLowerCase();
+    const isResearchIntent = lower.endsWith('?') ||
+                             lower.startsWith('how ') ||
+                             lower.startsWith('what ') ||
+                             lower.startsWith('why ') ||
+                             lower.startsWith('explain ') ||
+                             lower.startsWith('research ') ||
+                             lower.startsWith('compare ') ||
+                             lower.startsWith('analyze ') ||
+                             lower.startsWith('who is ') ||
+                             lower.startsWith('tell me about ');
+
+    if (isResearchIntent) {
+      return 'https://duckduckgo.com/?q=' + encodeURIComponent(trimmed) + '&ia=chat';
+    }
+
+    const eng = (defaultSearchEngine || 'duckduckgo').toLowerCase();
+    switch (eng) {
+      case 'google':
+        return 'https://www.google.com/search?q=' + encodeURIComponent(trimmed);
+      case 'brave':
+        return 'https://search.brave.com/search?q=' + encodeURIComponent(trimmed);
+      case 'perplexity':
+        return 'https://www.perplexity.ai/search?q=' + encodeURIComponent(trimmed);
+      case 'kagi':
+        return 'https://kagi.com/search?q=' + encodeURIComponent(trimmed);
+      case 'bing':
+        return 'https://www.bing.com/search?q=' + encodeURIComponent(trimmed);
+      default:
+        return 'https://duckduckgo.com/?q=' + encodeURIComponent(trimmed);
+    }
+  }
+
+  // --- Jakub Antalik Thinking-Orbs Engine (Adapted for Onyx) ---
+  const orbCanvas = document.getElementById('thinking-orb-canvas');
+  const orbContainer = document.getElementById('orb-container');
+  const orbPill = document.getElementById('orb-pill');
+  const orbCtx = orbCanvas ? orbCanvas.getContext('2d') : null;
+  const ORB_SIZE = 64;
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  if (orbCanvas) {
+    orbCanvas.width = ORB_SIZE * DPR;
+    orbCanvas.height = ORB_SIZE * DPR;
+  }
+
+  // Helper primitives
+  function hashD(a, b) {
+    const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+    return h - Math.floor(h);
+  }
+
+  function vnoise(x, y) {
+    const xi = Math.floor(x), yi = Math.floor(y);
+    let fx = x - xi, fy = y - yi;
+    fx = fx * fx * (3 - 2 * fx);
+    fy = fy * fy * (3 - 2 * fy);
+    const a = hashD(xi, yi), b = hashD(xi + 1, yi), c = hashD(xi, yi + 1), d = hashD(xi + 1, yi + 1);
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  }
+
+  function fibDir(i, n) {
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    const y = 1 - (2 * (i + 0.5)) / n;
+    const rad = Math.sqrt(Math.max(0, 1 - y * y));
+    const a = i * golden;
+    return [rad * Math.cos(a), y, rad * Math.sin(a)];
+  }
+
+  function angleDelta(a, b) {
+    return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  }
+
+  let orbTouchYaw = 0;
+  let orbTouchPitch = 0;
+  let velYaw = 0;
+  let velPitch = 0;
+  let isDraggingOrb = false;
+
+  function makeProj(yaw, tilt, cx, cy, scale) {
+    const finalTilt = tilt + orbTouchPitch;
+    const finalYaw = yaw + orbTouchYaw;
+    const st = Math.sin(finalTilt), ct = Math.cos(finalTilt);
+    const sy = Math.sin(finalYaw), cyw = Math.cos(finalYaw);
+    return (x, y, z) => {
+      const x1 = x * cyw + z * sy;
+      const z1 = -x * sy + z * cyw;
+      const y1 = y * ct - z1 * st;
+      const z2 = y * st + z1 * ct;
+      return [cx + x1 * scale, cy - y1 * scale, z2];
+    };
+  }
+
+  function radiusScale(size, pow = 0.6) {
+    return Math.pow(size / 300, pow);
+  }
+
+  function finalizeFrame(dots, lines = [], rMin = 0.3) {
+    const visible = [];
+    for (let i = 0; i < dots.length; i++) {
+      const d = dots[i];
+      if ((d.a ?? 1) < 0.02) continue;
+      d.r = Math.max(rMin, d.r);
+      visible.push(d);
+    }
+    visible.sort((a, b) => a.z - b.z);
+    return { dots: visible, lines: lines.filter(l => (l.a ?? 1) >= 0.02) };
+  }
+
+  // 1. Orbits (working)
+  function frameOrbits(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.82;
+    const pt = makeProj(t * 0.12, 0.3, cx, cy, 1);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const orbitN = 10, ghostN = 36, particles = 3;
+    for (let orb = 0; orb < orbitN; orb++) {
+      const h1 = hashD(orb, 1.7), h2 = hashD(orb, 5.2), h3 = hashD(orb, 8.9);
+      const ro = R * (0.45 + 0.52 * h1);
+      const th = h1 * 2 * Math.PI;
+      const phi = Math.acos(2 * h2 - 1);
+      const nx = Math.sin(phi) * Math.cos(th), ny = Math.cos(phi), nz = Math.sin(phi) * Math.sin(th);
+      let ux = -ny, uy = nx, uz = 0;
+      const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
+      ux /= ul; uy /= ul;
+      const vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
+      const speed = (0.25 + 0.55 * h3) * (h3 > 0.5 ? 1 : -1);
+      for (let k = 0; k < ghostN; k++) {
+        const a = (k / ghostN) * 2 * Math.PI;
+        const [px, py, z] = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro);
+        const depth = (z / ro + 1) / 2;
+        dots.push({ x: px, y: py, z, r: 0.9 * rs, white: 0.72, a: 0.5 * (0.4 + 0.6 * depth) });
+      }
+      for (let m = 0; m < particles; m++) {
+        const a = t * speed + (m / particles) * 2 * Math.PI + h2 * 6;
+        const [px, py, z] = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro);
+        const depth = (z / ro + 1) / 2;
+        dots.push({ x: px, y: py, z, r: (1.2 + 1.6 * depth) * rs, white: 0.3 - 0.22 * depth });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 2. Globe (searching)
+  function frameGlobe(size, t) {
+    const spin = 0.5, cx = size / 2, cy = size / 2;
+    const radius = (size / 2) * 0.82;
+    const tilt = 0.4 + 0.06 * Math.sin(t * 0.35);
+    const pt = makeProj(t * spin, tilt, cx, cy, radius);
+    const scan = t * (spin + (1.7 - spin) * 4.08);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const latRings = 15, lonDensity = 38;
+    for (let li = 0; li <= latRings; li++) {
+      const lat = -Math.PI / 2 + (li / latRings) * Math.PI;
+      const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+      const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+      for (let lj = 0; lj < lonCount; lj++) {
+        const lon = (lj / lonCount) * 2 * Math.PI;
+        const [px, py, z] = pt(cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon));
+        const depth = (z + 1) / 2;
+        const d = angleDelta(lon + t * spin, scan);
+        const boost = Math.exp(-(d * d) / 0.18) * Math.max(0, z);
+        dots.push({
+          x: px, y: py, z,
+          r: (0.6 + 1.7 * depth + 1.0 * boost) * rs,
+          white: 0.62 - 0.54 * depth,
+          a: 0.45 + 0.55 * Math.min(1, boost)
+        });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 3. Rubik (solving)
+  function solveCycle(time, count, slotDur, rest) {
+    const cyc = 2 * count * slotDur + rest;
+    const tc = time % cyc;
+    const amount = new Array(count).fill(0);
+    let active = -1;
+    if (tc < 2 * count * slotDur) {
+      const slot = Math.floor(tc / slotDur);
+      const p = (tc - slot * slotDur) / slotDur;
+      const cl = Math.min(1, p / 0.7);
+      const ep = 1 - Math.pow(1 - cl, 3);
+      if (slot < count) {
+        for (let i = 0; i < slot; i++) amount[i] = 1;
+        amount[slot] = ep;
+        active = slot;
+      } else {
+        const u = 2 * count - 1 - slot;
+        for (let i = 0; i < u; i++) amount[i] = 1;
+        amount[u] = 1 - ep;
+        active = u;
+      }
+    }
+    return { amount, active };
+  }
+
+  function makeMoves(count) {
+    const moves = [];
+    for (let i = 0; i < count; i++) {
+      const axis = Math.min(2, Math.floor(hashD(i, 2.3) * 3));
+      const lo = -1.0 + 0.5 * Math.min(3, Math.floor(hashD(i, 5.9) * 4));
+      const dir = hashD(i, 7.7) < 0.5 ? 1 : -1;
+      moves.push({ axis, lo, hi: lo + 0.5, ang: (dir * Math.PI) / 2 });
+    }
+    return moves;
+  }
+
+  function applyMoves(pt3, moves, sc) {
+    let [x, y, z] = pt3;
+    let inActive = false;
+    for (let i = 0; i < moves.length; i++) {
+      if (sc.amount[i] <= 0) continue;
+      const mv = moves[i];
+      const coord = mv.axis === 0 ? x : mv.axis === 1 ? y : z;
+      if (coord < mv.lo || coord >= mv.hi) continue;
+      if (i === sc.active) inActive = true;
+      const a = mv.ang * sc.amount[i];
+      const ca = Math.cos(a), sa = Math.sin(a);
+      if (mv.axis === 0) {
+        const y2 = y * ca - z * sa;
+        z = y * sa + z * ca;
+        y = y2;
+      } else if (mv.axis === 1) {
+        const x2 = x * ca + z * sa;
+        z = -x * sa + z * ca;
+        x = x2;
+      } else {
+        const x2 = x * ca - y * sa;
+        y = x * sa + y * ca;
+        x = x2;
+      }
+    }
+    return [x, y, z, inActive];
+  }
+
+  const rubikMoves = makeMoves(14);
+  function frameRubik(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.82;
+    const pt = makeProj(t * 0.55, 0.35 + 0.1 * Math.sin(t * 0.9), cx, cy, R);
+    const rs = radiusScale(size, 0.6);
+    const sc = solveCycle(t, 14, 0.42, 1.2);
+    const dots = [];
+    const latRings = 13, lonDensity = 34;
+    for (let li = 0; li <= latRings; li++) {
+      const lat = -Math.PI / 2 + (li / latRings) * Math.PI;
+      const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+      const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+      for (let lj = 0; lj < lonCount; lj++) {
+        const lon = (lj / lonCount) * 2 * Math.PI;
+        const [x, y, z, inActive] = applyMoves([cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon)], rubikMoves, sc);
+        const [px, py, zr] = pt(x, y, z);
+        const depth = (zr + 1) / 2;
+        dots.push({
+          x: px, y: py, z: zr,
+          r: (0.6 + 1.7 * depth + (inActive ? 0.3 : 0)) * rs,
+          white: 0.62 - 0.54 * depth - (inActive ? 0.14 : 0)
+        });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 4. Wave (listening)
+  function frameWave(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.874;
+    const pt = makeProj(t * 0.18, 0.38, cx, cy, 1);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const rings = 14, lonDensity = 36;
+    for (let ri = 0; ri <= rings; ri++) {
+      const lat = -Math.PI / 2 + (ri / rings) * Math.PI;
+      const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+      const w = 0.62 * Math.sin(t * 2.1 - ri * 0.52) + 0.38 * Math.sin(t * 1.27 + ri * 0.83);
+      const rr = R * (0.88 + 0.105 * w);
+      const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
+      for (let lj = 0; lj < lonCount; lj++) {
+        const lon = (lj / lonCount) * 2 * Math.PI;
+        const [px, py, z] = pt(cosLat * Math.cos(lon) * rr, sinLat * rr, cosLat * Math.sin(lon) * rr);
+        const depth = (z / R + 1) / 2;
+        const crest = Math.max(0, w);
+        dots.push({
+          x: px, y: py, z,
+          r: (0.6 + 1.7 * depth) * (1 + 0.4 * crest) * rs,
+          white: 0.66 - 0.56 * depth - 0.1 * crest
+        });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 5. Ring / Breathing (breathing)
+  function frameRing(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.78;
+    const camTilt = 0.3;
+    const pt = makeProj(0, camTilt, cx, cy, 1);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const wobAmp = 0.23 * 0.368;
+    const baseR = R / (1 + 0.85 * wobAmp);
+    const lanes = 4, segs = 70;
+    for (let w = 0; w < lanes; w++) {
+      const laneOff = (w - (lanes - 1) / 2) * 0.075;
+      const edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+      for (let k = 0; k < segs; k++) {
+        const a = (k / segs) * 2 * Math.PI;
+        const wob = (0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1)) * 0.368;
+        const radial = 1 + wob;
+        const x = Math.cos(a) * (baseR * radial);
+        const y = Math.sin(a) * (baseR * radial) + laneOff * baseR;
+        const [px, py, zr] = pt(x, y, 0);
+        const depth = 0.5;
+        dots.push({
+          x: px, y: py, z: zr,
+          r: (1.1 + 1.7 * depth) * (1 - 0.25 * edge) * rs,
+          white: 0.52 - 0.44 * depth + 0.18 * edge,
+          a: 0.6 + 0.4 * Math.sin(t * 1.2 + a)
+        });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 6. Web (connecting)
+  function frameWeb(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.8;
+    const pt = makeProj(t * 0.12, 0.32, cx, cy, R);
+    const rs = radiusScale(size, 0.6);
+    const nodeN = 22, thr = 0.72;
+    const nodes = [];
+    for (let i = 0; i < nodeN; i++) {
+      const d = fibDir(i, nodeN);
+      const x = d[0] + 0.3 * (vnoise(i * 0.31 + 9, t * 0.24) - 0.5) * 2;
+      const y = d[1] + 0.3 * (vnoise(i * 0.53 + 27, t * 0.21) - 0.5) * 2;
+      const z = d[2] + 0.3 * (vnoise(i * 0.77 + 55, t * 0.27) - 0.5) * 2;
+      const l = Math.sqrt(x * x + y * y + z * z);
+      nodes.push([x / l, y / l, z / l]);
+    }
+    const lines = [], dots = [];
+    for (let i = 0; i < nodeN; i++) {
+      for (let j = i + 1; j < nodeN; j++) {
+        const dx = nodes[i][0] - nodes[j][0], dy = nodes[i][1] - nodes[j][1], dz = nodes[i][2] - nodes[j][2];
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist >= thr) continue;
+        const [x1, y1, z1] = pt(nodes[i][0], nodes[i][1], nodes[i][2]);
+        const [x2, y2, z2] = pt(nodes[j][0], nodes[j][1], nodes[j][2]);
+        const depth = ((z1 + z2) / 2 + 1) / 2;
+        lines.push({ x1, y1, x2, y2, white: 0.42, a: (1 - dist / thr) * (0.3 + 0.55 * depth), w: Math.max(0.6, 0.8 * rs) });
+      }
+    }
+    for (let i = 0; i < nodeN; i++) {
+      const [px, py, z] = pt(nodes[i][0], nodes[i][1], nodes[i][2]);
+      const depth = (z + 1) / 2;
+      const pulse = 1 + 0.25 * Math.sin(t * 1.4 + i * 2.7);
+      dots.push({ x: px, y: py, z, r: (1.4 + 1.8 * depth) * pulse * rs, white: 0.55 - 0.45 * depth });
+    }
+    return finalizeFrame(dots, lines);
+  }
+
+  // 7. Braid (weaving)
+  function frameBraid(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.76;
+    const pt = makeProj(t * 0.4, 0.3, cx, cy, 1);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const strandN = 40, turns = 3.0;
+    for (let s = 0; s < 3; s++) {
+      const phase = (s / 3) * 2 * Math.PI;
+      for (let i = 0; i < strandN; i++) {
+        const u = (((i / strandN + t * 0.045) % 1) * 2 - 1) * 0.96;
+        const surf = Math.sqrt(Math.max(0, 1 - u * u));
+        const endFade = Math.min(1, (1 - Math.abs(u)) / 0.1);
+        const a = u * Math.PI * turns + phase;
+        const weave = 1 + 0.075 * Math.sin(u * Math.PI * turns * 2 + phase * 2 + t * 0.8);
+        const rr = surf * R * weave;
+        const [px, py, zr] = pt(Math.cos(a) * rr, u * R * weave, Math.sin(a) * rr);
+        const depth = (zr / R + 1) / 2;
+        dots.push({ x: px, y: py, z: zr, r: (1.2 + 1.8 * depth) * rs, white: 0.55 - 0.45 * depth, a: endFade * (0.45 + 0.55 * depth) });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 8. Ribbon (composing)
+  function frameRibbon(size, t) {
+    const cx = size / 2, cy = size / 2;
+    const R = (size / 2) * 0.78;
+    const camTilt = 0.3;
+    const pt = makeProj(t * 0.1, camTilt, cx, cy, 1);
+    const rs = radiusScale(size, 0.6);
+    const dots = [];
+    const lanes = 4, segs = 64;
+    for (let w = 0; w < lanes; w++) {
+      const laneOff = (w - (lanes - 1) / 2) * 0.075;
+      const edge = Math.abs(w - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+      for (let k = 0; k < segs; k++) {
+        const a = (k / segs) * 2 * Math.PI;
+        const wob = 0.16 * Math.sin(a * 3 - t * 1.7 + w * 0.22) + 0.07 * Math.sin(a * 5 + t * 1.1);
+        const x = Math.cos(a) * R;
+        const y = Math.sin(a) * R;
+        const z = (laneOff + wob) * R;
+        const l = Math.sqrt(x * x + y * y + z * z);
+        const [px, py, zr] = pt((x / l) * R, (y / l) * R, (z / l) * R);
+        const depth = (zr / R + 1) / 2;
+        dots.push({ x: px, y: py, z: zr, r: (1.1 + 1.7 * depth) * (1 - 0.25 * edge) * rs, white: 0.52 - 0.44 * depth + 0.18 * edge, a: 0.4 + 0.6 * depth });
+      }
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // 9. Morph (shaping)
+  function smoothE(x) { return x * x * (3 - 2 * x); }
+  function polyPath(verts) {
+    const V = verts.length;
+    const L = [];
+    let total = 0;
+    for (let i = 0; i < V; i++) {
+      const a = verts[i], b = verts[(i + 1) % V];
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      L.push(l);
+      total += l;
+    }
+    return (f) => {
+      let target = f * total, i = 0;
+      while (target > L[i] && i < V - 1) { target -= L[i]; i++; }
+      const a = verts[i], b = verts[(i + 1) % V];
+      const ff = L[i] ? Math.min(1, target / L[i]) : 0;
+      return [a[0] + (b[0] - a[0]) * ff, a[1] + (b[1] - a[1]) * ff];
+    };
+  }
+  const M_CIRCLE = (f) => { const a = -Math.PI / 2 + f * 2 * Math.PI; return [Math.cos(a) * 0.24, Math.sin(a) * 0.24]; };
+  const M_TRIANGLE = polyPath([[0.0, -0.26], [0.24, 0.16], [-0.24, 0.16]]);
+  const M_SQUARE = polyPath([[0, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [-0.2, -0.2]]);
+  const M_CYCLE = [M_CIRCLE, M_TRIANGLE, M_SQUARE];
+
+  function frameMorph(size, t) {
+    const K = M_CYCLE.length;
+    const HOLD = 1.4, MORPH = 0.9, SEG = HOLD + MORPH;
+    const tc = t % (SEG * K);
+    const k = Math.floor(tc / SEG);
+    const local = tc - k * SEG;
+    const m = local > HOLD ? smoothE((local - HOLD) / MORPH) : 0;
+    const pA = M_CYCLE[k], pB = M_CYCLE[(k + 1) % K];
+    const M = 100, pts = [];
+    for (let i = 0; i < M; i++) {
+      const f = i / M, a = pA(f), b = pB(f);
+      pts.push([a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m]);
+    }
+    const L = [];
+    let total = 0;
+    for (let i = 0; i < M; i++) {
+      const a = pts[i], b = pts[(i + 1) % M];
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      L.push(l);
+      total += l;
+    }
+    const n = 28, re = 0.028, pulse = 1 + 0.02 * Math.sin(local * 3.1);
+    const dots = [], c2 = size / 2;
+    let seg = 0, acc = 0;
+    for (let k2 = 0; k2 < n; k2++) {
+      const target = (k2 / n) * total;
+      while (acc + L[seg] < target && seg < M - 1) { acc += L[seg]; seg++; }
+      const a = pts[seg], b = pts[(seg + 1) % M];
+      const f = L[seg] ? Math.min(1, (target - acc) / L[seg]) : 0;
+      const x = (a[0] + (b[0] - a[0]) * f) * pulse;
+      const y = (a[1] + (b[1] - a[1]) * f) * pulse;
+      dots.push({ x: c2 + x * size, y: c2 + y * size, z: 0, r: Math.max(0.6, re * size), white: 0.1 });
+    }
+    return finalizeFrame(dots, []);
+  }
+
+  // Painter pass
+  function paintFrame(ctx, frame, dark = true) {
+    if (frame.lines && frame.lines.length) {
+      for (let i = 0; i < frame.lines.length; i++) {
+        const l = frame.lines[i];
+        const alpha = l.a ?? 1;
+        const w = Math.min(1, Math.max(0, l.white));
+        const g = Math.round((dark ? 1 - w : w) * 255);
+        ctx.strokeStyle = `rgba(${g},${g},${g},${alpha})`;
+        ctx.lineWidth = l.w;
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.stroke();
+      }
+    }
+    for (let i = 0; i < frame.dots.length; i++) {
+      const d = frame.dots[i];
+      const alpha = d.a ?? 1;
+      const w = Math.min(1, Math.max(0, d.white));
+      const g = Math.round((dark ? 1 - w : w) * 255);
+      ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  const ORB_MODES = [
+    { key: 'breathing', label: 'idle', speed: 3.24 },
+    { key: 'listening', label: 'listening', speed: 3.99 },
+    { key: 'searching', label: 'searching', speed: 2.2 },
+    { key: 'working', label: 'working', speed: 1.88 },
+    { key: 'solving', label: 'solving', speed: 1.82 },
+    { key: 'connecting', label: 'connecting', speed: 3.3 },
+    { key: 'weaving', label: 'weaving', speed: 1.62 },
+    { key: 'composing', label: 'composing', speed: 2.34 },
+    { key: 'shaping', label: 'shaping', speed: 2.4 }
+  ];
+
+  let currentModeIdx = 0;
+  let activeMode = ORB_MODES[0]; // All-time idle by default
+  let idleResetTimer = null;
+  const reactivePool = ['listening', 'working', 'searching', 'shaping', 'solving', 'connecting', 'weaving'];
+  let reactionIdx = 0;
+
+  function setOrbMode(key, flashBadge = false) {
+    const foundIdx = ORB_MODES.findIndex(m => m.key === key);
+    if (foundIdx !== -1) {
+      currentModeIdx = foundIdx;
+      activeMode = ORB_MODES[foundIdx];
+      if (orbPill) {
+        orbPill.textContent = activeMode.label;
+        if (flashBadge && activeMode.key !== 'breathing') {
+          orbPill.classList.add('visible');
+          clearTimeout(orbPill._timer);
+          orbPill._timer = setTimeout(() => {
+            orbPill.classList.remove('visible');
+          }, 1600);
+        } else if (activeMode.key === 'breathing') {
+          orbPill.classList.remove('visible');
+        }
+      }
+    }
+  }
+
+  // Trigger temporary reaction, then always go back to idle
+  function triggerReaction(targetKey = null, duration = 2000) {
+    clearTimeout(idleResetTimer);
+    
+    if (!targetKey) {
+      targetKey = reactivePool[reactionIdx % reactivePool.length];
+      reactionIdx++;
+    }
+    
+    setOrbMode(targetKey, true);
+    
+    // Automatically transition back to idle
+    idleResetTimer = setTimeout(() => {
+      setOrbMode('breathing', false);
+    }, duration);
+  }
+
+  // Interactive Touch Drag & Inertial Rotation for Thinking Orb
+  let startX = 0, startY = 0;
+  let lastX = 0, lastY = 0;
+  let hasMovedSignificantly = false;
+
+  if (orbContainer) {
+    orbContainer.addEventListener('pointerdown', (e) => {
+      isDraggingOrb = true;
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
+      velYaw = 0;
+      velPitch = 0;
+      hasMovedSignificantly = false;
+      try { orbContainer.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDraggingOrb) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 6) {
+        hasMovedSignificantly = true;
+      }
+
+      velYaw = dx * 0.015;
+      velPitch = dy * 0.015;
+      orbTouchYaw += velYaw;
+      orbTouchPitch -= velPitch;
+      orbTouchPitch = Math.max(-1.15, Math.min(1.15, orbTouchPitch));
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!isDraggingOrb) return;
+      isDraggingOrb = false;
+      try { orbContainer.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (!hasMovedSignificantly) {
+        // Tap action: pulse ripple, trigger reaction and haptic response!
+        orbContainer.style.transform = 'scale(1.14)';
+        setTimeout(() => { orbContainer.style.transform = ''; }, 180);
+        triggerReaction(null, 2200);
+        OnyxBridge.vibrate(12);
+      }
+    });
+
+    window.addEventListener('pointercancel', () => {
+      isDraggingOrb = false;
+    });
+  }
+
+  let animRunning = true;
+  function renderOrb() {
+    if (!animRunning || !orbCtx) return;
+    const tSec = (performance.now() / 1000) * activeMode.speed;
+    orbCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    orbCtx.clearRect(0, 0, ORB_SIZE, ORB_SIZE);
+
+    // Inertial deceleration when not actively dragging
+    if (!isDraggingOrb) {
+      orbTouchYaw += velYaw;
+      orbTouchPitch += velPitch;
+      velYaw *= 0.93;
+      velPitch *= 0.93;
+      if (Math.abs(velYaw) < 0.0001) velYaw = 0;
+      if (Math.abs(velPitch) < 0.0001) velPitch = 0;
+    }
+
+    let frame;
+    switch (activeMode.key) {
+      case 'working':
+        frame = frameOrbits(ORB_SIZE, tSec);
+        break;
+      case 'searching':
+        frame = frameOrbits(ORB_SIZE, tSec);
+        break;
+      case 'solving':
+        frame = frameRubik(ORB_SIZE, tSec);
+        break;
+      case 'listening':
+        frame = frameWave(ORB_SIZE, tSec);
+        break;
+      case 'connecting':
+        frame = frameWeb(ORB_SIZE, tSec);
+        break;
+      case 'weaving':
+        frame = frameBraid(ORB_SIZE, tSec);
+        break;
+      case 'composing':
+        frame = frameRibbon(ORB_SIZE, tSec);
+        break;
+      case 'breathing':
+        frame = frameRing(ORB_SIZE, tSec);
+        break;
+      case 'shaping':
+        frame = frameMorph(ORB_SIZE, tSec);
+        break;
+      default:
+        frame = frameRing(ORB_SIZE, tSec);
+    }
+    paintFrame(orbCtx, frame, true);
+    requestAnimationFrame(renderOrb);
+  }
+
+  if (orbCanvas) {
+    requestAnimationFrame(renderOrb);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      animRunning = false;
+    } else {
+      if (!animRunning) {
+        animRunning = true;
+        requestAnimationFrame(renderOrb);
+      }
+    }
+  });
+
+  // Interactive hooks for Thinking-Orbs on search interactions
+  searchInput.addEventListener('focus', () => {
+    triggerReaction('listening', 2500);
+    if (searchInput.value.trim()) {
+      handleSuggestionsInput(searchInput.value);
+    }
+  });
+
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      hideSuggestions();
+    }, 200);
+    if (!searchInput.value.trim()) {
+      clearTimeout(idleResetTimer);
+      setOrbMode('breathing', false);
+    }
+  });
+
+  searchInput.addEventListener('input', () => {
+    const val = searchInput.value.trim().toLowerCase();
+    handleSuggestionsInput(searchInput.value);
+    if (val.startsWith('!r') || val.startsWith('!ai') || val.startsWith('!d') || val.endsWith('?') ||
+        val.startsWith('how ') || val.startsWith('what ') || val.startsWith('why ') || val.startsWith('explain ')) {
+      triggerReaction('working', 3000);
+    } else if (val.length > 0) {
+      triggerReaction('listening', 2000);
+    } else {
+      clearTimeout(idleResetTimer);
+      setOrbMode('breathing', false);
+    }
+  });
+
+  // --- Browsing Suggestions Engine ---
+  const suggestionsDropdown = document.getElementById('suggestions-dropdown');
+  const suggestionsList = document.getElementById('suggestions-list');
+  let currentSuggestions = [];
+  let selectedSuggestionIndex = -1;
+  let suggestionReqId = 0;
+  let suggestionDebounceTimer = null;
+
+  const POPULAR_DOMAINS = [
+    { key: 'apple', domain: 'apple.com', title: 'Apple' },
+    { key: 'google', domain: 'google.com', title: 'Google' },
+    { key: 'github', domain: 'github.com', title: 'GitHub' },
+    { key: 'youtube', domain: 'youtube.com', title: 'YouTube' },
+    { key: 'reddit', domain: 'reddit.com', title: 'Reddit' },
+    { key: 'x', domain: 'x.com', title: 'X (Twitter)' },
+    { key: 'twitter', domain: 'twitter.com', title: 'Twitter / X' },
+    { key: 'wikipedia', domain: 'wikipedia.org', title: 'Wikipedia' },
+    { key: 'amazon', domain: 'amazon.com', title: 'Amazon' },
+    { key: 'figma', domain: 'figma.com', title: 'Figma' },
+    { key: 'notion', domain: 'notion.so', title: 'Notion' },
+    { key: 'ninjatrader', domain: 'web.ninjatrader.com', title: 'NinjaTrader Web' },
+    { key: 'tradesea', domain: 'app.tradesea.ai', title: 'Tradesea' },
+    { key: 'conflictly', domain: 'conflictly.app', title: 'Conflictly' }
+  ];
+
+  const BANG_LIST = [
+    { bang: '!r', name: 'AI Deep Research', icon: 'sparkles' },
+    { bang: '!ai', name: 'AI Chat', icon: 'sparkles' },
+    { bang: '!d', name: 'Duck.ai Research', icon: 'sparkles' },
+    { bang: '!p', name: 'Perplexity AI', icon: 'sparkles' },
+    { bang: '!g', name: 'Google Search', icon: 'search' },
+    { bang: '!yt', name: 'YouTube Ad-Free', icon: 'play' },
+    { bang: '!gh', name: 'GitHub Repos', icon: 'code' },
+    { bang: '!w', name: 'Wikipedia', icon: 'book' },
+    { bang: '!k', name: 'Kagi Search', icon: 'shield' },
+    { bang: '!b', name: 'Brave Search', icon: 'shield' }
+  ];
+
+  function getSvgIcon(type) {
+    if (type === 'globe') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>';
+    }
+    if (type === 'sparkles') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>';
+    }
+    if (type === 'play') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.18" ry="2.18"></rect><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>';
+    }
+    if (type === 'code') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>';
+    }
+    if (type === 'book') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>';
+    }
+    if (type === 'shield') {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+  }
+
+  function renderSuggestions(items) {
+    currentSuggestions = items || [];
+    selectedSuggestionIndex = -1;
+    if (!suggestionsDropdown || !suggestionsList) return;
+    if (!items || items.length === 0) {
+      hideSuggestions();
+      return;
+    }
+    suggestionsList.innerHTML = items.map((item, index) => `
+      <div class="suggestion-item" data-index="${index}">
+        <div class="suggestion-icon">${getSvgIcon(item.iconType || 'search')}</div>
+        <div class="suggestion-title">${escapeHTML(item.title)}</div>
+        ${item.badge ? `<div class="suggestion-badge">${escapeHTML(item.badge)}</div>` : ''}
+      </div>
+    `).join('');
+
+    suggestionsList.querySelectorAll('.suggestion-item').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        setSuggestionSelectedIndex(idx, false);
+      });
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const idx = parseInt(el.getAttribute('data-index'), 10);
+        executeSuggestion(currentSuggestions[idx]);
+      });
+    });
+
+    suggestionsDropdown.style.display = 'block';
+  }
+
+  function hideSuggestions() {
+    if (suggestionsDropdown) {
+      suggestionsDropdown.style.display = 'none';
+    }
+    currentSuggestions = [];
+    selectedSuggestionIndex = -1;
+  }
+
+  function setSuggestionSelectedIndex(index, updateInput = true) {
+    selectedSuggestionIndex = index;
+    if (!suggestionsList) return;
+    const rows = suggestionsList.querySelectorAll('.suggestion-item');
+    rows.forEach((row, i) => {
+      row.classList.toggle('selected', i === index);
+    });
+    if (updateInput && index >= 0 && index < currentSuggestions.length) {
+      const item = currentSuggestions[index];
+      searchInput.value = item.queryValue || item.title;
+    }
+  }
+
+  function executeSuggestion(item) {
+    if (!item) return;
+    hideSuggestions();
+    if (item.url) {
+      triggerReaction('working', 3000);
+      setTimeout(() => { OnyxBridge.openUrl(item.url); }, 100);
+    } else {
+      const q = item.queryValue || item.title;
+      const url = resolveQuery(q);
+      if (url) {
+        triggerReaction('working', 3000);
+        setTimeout(() => { OnyxBridge.openUrl(url); }, 100);
+      }
+    }
+  }
+
+  function generateInstantSuggestions(query) {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const items = [];
+    const lower = trimmed.toLowerCase();
+    const names = {
+      duckduckgo: 'DuckDuckGo',
+      google: 'Google',
+      brave: 'Brave',
+      perplexity: 'Perplexity',
+      kagi: 'Kagi',
+      bing: 'Bing'
+    };
+    const engineName = names[defaultSearchEngine] || 'Search';
+
+    // 1. Search Query
+    items.push({
+      title: `Search ${engineName} for "${trimmed}"`,
+      queryValue: trimmed,
+      badge: 'Search',
+      iconType: 'search'
+    });
+
+    // 2. Direct Domain navigation
+    for (const d of POPULAR_DOMAINS) {
+      if (d.key.startsWith(lower) || d.domain.startsWith(lower)) {
+        items.push({
+          title: `${d.title} — ${d.domain}`,
+          url: `https://${d.domain}`,
+          badge: 'Visit',
+          iconType: 'globe'
+        });
+        break;
+      }
+    }
+    if (trimmed.includes('.') && !trimmed.includes(' ')) {
+      items.push({
+        title: `Go to ${trimmed}`,
+        url: trimmed.startsWith('http') ? trimmed : `https://${trimmed}`,
+        badge: 'Open URL',
+        iconType: 'globe'
+      });
+    }
+
+    // 3. Bang shortcuts
+    if (trimmed.startsWith('!')) {
+      for (const b of BANG_LIST) {
+        if (b.bang.startsWith(lower) || lower === '!') {
+          const rest = trimmed.slice(b.bang.length).trim();
+          items.push({
+            title: rest ? `${b.bang} ${rest} · ${b.name}` : `${b.bang} · ${b.name}`,
+            queryValue: trimmed,
+            badge: 'Bang',
+            iconType: b.icon
+          });
+        }
+      }
+    }
+
+    return items;
+  }
+
+  function handleSuggestionsInput(rawVal) {
+    const val = rawVal.trim();
+    if (!val) {
+      hideSuggestions();
+      return;
+    }
+
+    // Render instant local suggestions immediately
+    const instant = generateInstantSuggestions(val);
+    renderSuggestions(instant);
+
+    // Request async suggestions via native bridge
+    const currentReq = ++suggestionReqId;
+    clearTimeout(suggestionDebounceTimer);
+    suggestionDebounceTimer = setTimeout(() => {
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.onyxFetchSuggestions) {
+        window.webkit.messageHandlers.onyxFetchSuggestions.postMessage({ query: val, reqId: String(currentReq) });
+      } else if (window.OnyxAndroid && window.OnyxAndroid.fetchSuggestions) {
+        window.OnyxAndroid.fetchSuggestions(val, String(currentReq));
+      }
+    }, 120);
+  }
+
+  window.onOnyxSuggestionsReceived = function(reqId, remoteSuggestions) {
+    if (parseInt(reqId, 10) !== suggestionReqId) return;
+    const currentVal = searchInput.value.trim();
+    if (!currentVal) return;
+
+    const baseItems = generateInstantSuggestions(currentVal).slice(0, 3);
+    if (Array.isArray(remoteSuggestions)) {
+      for (const phrase of remoteSuggestions.slice(0, 5)) {
+        if (!baseItems.some(i => i.queryValue === phrase || i.title === phrase)) {
+          baseItems.push({
+            title: phrase,
+            queryValue: phrase,
+            badge: 'Suggestion',
+            iconType: 'search'
+          });
+        }
+      }
+    }
+    renderSuggestions(baseItems);
+  };
+
+  function submitCurrentSearch() {
+    if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < currentSuggestions.length) {
+      executeSuggestion(currentSuggestions[selectedSuggestionIndex]);
+      return;
+    }
+    hideSuggestions();
+    const url = resolveQuery(searchInput.value);
+    if (url) {
+      triggerReaction('working', 3500);
+      setTimeout(() => {
+        OnyxBridge.openUrl(url);
+      }, 140);
+    }
+  }
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      if (currentSuggestions.length > 0) {
+        e.preventDefault();
+        const nextIdx = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+        setSuggestionSelectedIndex(nextIdx, true);
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (currentSuggestions.length > 0) {
+        e.preventDefault();
+        const prevIdx = selectedSuggestionIndex <= 0 ? currentSuggestions.length - 1 : selectedSuggestionIndex - 1;
+        setSuggestionSelectedIndex(prevIdx, true);
+      }
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    } else if (e.key === 'Tab') {
+      if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < currentSuggestions.length) {
+        e.preventDefault();
+        const item = currentSuggestions[selectedSuggestionIndex];
+        searchInput.value = item.queryValue || item.title;
+      }
+    } else if (e.key === 'Enter') {
+      submitCurrentSearch();
+    }
+  });
+
+  document.getElementById('search-submit-btn')?.addEventListener('click', () => {
+    submitCurrentSearch();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (searchWrapper && !searchWrapper.contains(e.target)) {
+      hideSuggestions();
+    }
+  });
+
+  // Initialize engine state on startpage
+  setSearchEngine(defaultSearchEngine);
+
+  // Favorite clicks
+  document.querySelectorAll('.favorite-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const url = el.getAttribute('data-url');
+      if (url) {
+        triggerReaction('working', 3000);
+        setTimeout(() => {
+          OnyxBridge.openUrl(url);
+        }, 140);
+      }
+    });
+  });
+
+  // Workspace card clicks
+  document.querySelectorAll('.workspace-card, .suggested-card').forEach((el) => {
+    el.addEventListener('click', () => {
+      const url = el.getAttribute('data-url');
+      if (url) {
+        triggerReaction('working', 3000);
+        setTimeout(() => {
+          OnyxBridge.openUrl(url);
+        }, 140);
+      }
+    });
+  });
+
+  // Keyboard shortcuts (Search, Workspaces, News)
+  window.addEventListener('keydown', (e) => {
+    if (document.activeElement !== searchInput) {
+      if (e.key === '/' || e.key === 's') {
+        e.preventDefault();
+        searchInput.focus();
+      } else if (e.key === 'w' || e.key === 'W') {
+        setDeckMode('workspaces');
+      } else if (e.key === 'n' || e.key === 'N') {
+        setDeckMode('news');
+      }
+    }
+  });
+
+  // Dynamic Profile Reflection
+  window.updateActiveProfile = function(name, colorHex) {
+    const dot = document.getElementById('startpage-profile-dot');
+    const nameEl = document.getElementById('startpage-profile-name');
+    if (dot && nameEl) {
+      dot.style.backgroundColor = colorHex || '#ffffff';
+      dot.style.boxShadow = `0 0 8px ${colorHex || 'rgba(255,255,255,0.4)'}`;
+      nameEl.textContent = name || 'Personal';
+    }
+  };
+
+  // --- Workspaces & News Dual Deck Controller with Live Everyday News Engine ---
+  const STORAGE_KEY = 'onyx_live_news_v2';
+
+  function getTodayDateKey() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatRelativeTime(epochMs) {
+    if (!epochMs) return 'Today';
+    const diffSec = Math.floor((Date.now() - epochMs) / 1000);
+    if (diffSec < 60) return 'just now';
+    if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    const diffDays = Math.floor(diffSec / 86400);
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return 'Today';
+  }
+
+  function cleanDomain(url) {
+    if (!url) return 'news.ycombinator.com';
+    try {
+      const u = new URL(url);
+      return u.hostname.replace(/^www\./, '');
+    } catch (e) {
+      return 'news.ycombinator.com';
+    }
+  }
+
+  const AI_TERMS = /\b(ai|llm|gpt|claude|anthropic|openai|deepseek|gemini|transformer|neural|machine learning|reasoning|model|agent|diffusion|gpu|nvidia|cuda|inference|qwen|mistral|artificial intelligence)\b/i;
+  const MARKET_TERMS = /\b(market|markets|stock|stocks|shares|economy|economic|inflation|gdp|nasdaq|s&p|dow|earnings|revenue|ipo|valuation|venture|investor|investors|fintech|treasury|rates|wall street|crypto|bitcoin|fundraising|billion|trillion|pricing|trade|trading)\b/i;
+  const TECH_TERMS = /\b(linux|rust|apple|macos|ios|software|code|developer|programming|kernel|database|system|browser|security|vulnerability|open-source|open source|git|web|performance|server|cpu|hardware|intel|amd|chip|python|swift|typescript)\b/i;
+
+  function classifyStory(title, source) {
+    const t = (title || '') + ' ' + (source || '');
+    if (AI_TERMS.test(t)) return 'ai';
+    if (MARKET_TERMS.test(t)) return 'markets';
+    if (TECH_TERMS.test(t)) return 'tech';
+    return 'tech';
+  }
+
+  function getCategoryLabel(cat, title) {
+    const t = (title || '').toLowerCase();
+    if (cat === 'ai') {
+      if (t.includes('paper') || t.includes('research') || t.includes('study')) return 'Research';
+      if (t.includes('reason') || t.includes('benchmark')) return 'Reasoning';
+      if (t.includes('agent')) return 'Agents';
+      return 'AI Frontier';
+    }
+    if (cat === 'markets') {
+      if (t.includes('crypto') || t.includes('bitcoin')) return 'Digital Assets';
+      if (t.includes('fed') || t.includes('inflation') || t.includes('gdp')) return 'Macro';
+      if (t.includes('venture') || t.includes('ipo') || t.includes('fund')) return 'Venture';
+      return 'Markets';
+    }
+    if (t.includes('security') || t.includes('vulnerability') || t.includes('zero-day')) return 'Security';
+    if (t.includes('kernel') || t.includes('cpu') || t.includes('hardware') || t.includes('linux')) return 'Systems';
+    return 'Engineering';
+  }
+
+  function parseGoogleNewsRSS(xmlText) {
+    const items = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    while ((match = itemRegex.exec(xmlText)) !== null) {
+      const block = match[1];
+      const titleMatch = /<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/.exec(block);
+      const linkMatch = /<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/.exec(block);
+      const pubDateMatch = /<pubDate>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/pubDate>/.exec(block);
+      const sourceMatch = /<source[^>]*url="([^"]*)"[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/source>/.exec(block);
+
+      if (titleMatch) {
+        let title = titleMatch[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+        
+        let sourceName = sourceMatch ? sourceMatch[2] : '';
+        let sourceUrl = sourceMatch ? sourceMatch[1] : '';
+        if (!sourceName && title.includes(' - ')) {
+          const parts = title.split(' - ');
+          sourceName = parts.pop();
+          title = parts.join(' - ');
+        }
+        const timestamp = pubDateMatch ? new Date(pubDateMatch[1]).getTime() : Date.now();
+        const cleanUrl = linkMatch ? linkMatch[1].trim() : '';
+        const cleanSrc = sourceName ? cleanDomain('https://' + sourceName) : (sourceUrl ? cleanDomain(sourceUrl) : 'news.google.com');
+
+        items.push({
+          id: 'rss_' + Math.abs(title.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)),
+          headline: title.trim(),
+          url: cleanUrl,
+          timestamp: isNaN(timestamp) ? Date.now() : timestamp,
+          source: cleanSrc
+        });
+      }
+    }
+    return items;
+  }
+
+  const FALLBACK_NEWS = {
+    all: [
+      {
+        id: "fb1",
+        cat: "ai",
+        catLabel: "AI Frontier",
+        time: "1h ago",
+        timestamp: Date.now() - 3600000,
+        headline: "Claude Opus 5.5 Intelligence, Performance and Reasoning Analysis",
+        source: "anthropic.com",
+        url: "https://www.anthropic.com/news"
+      },
+      {
+        id: "fb2",
+        cat: "markets",
+        catLabel: "Markets",
+        time: "3h ago",
+        timestamp: Date.now() - 10800000,
+        headline: "Nasdaq Hits Record High on Hyperscale CapEx & Sector Rotations",
+        source: "reuters.com",
+        url: "https://www.reuters.com/markets"
+      },
+      {
+        id: "fb3",
+        cat: "tech",
+        catLabel: "Engineering",
+        time: "4h ago",
+        timestamp: Date.now() - 14400000,
+        headline: "High-Performance Native Mac WebKit Runtimes in Modern Swift & Rust",
+        source: "news.ycombinator.com",
+        url: "https://news.ycombinator.com/"
+      }
+    ],
+    ai: [
+      {
+        id: "fb1",
+        cat: "ai",
+        catLabel: "AI Frontier",
+        time: "1h ago",
+        timestamp: Date.now() - 3600000,
+        headline: "Claude Opus 5.5 Intelligence, Performance and Reasoning Analysis",
+        source: "anthropic.com",
+        url: "https://www.anthropic.com/news"
+      },
+      {
+        id: "fb4",
+        cat: "ai",
+        catLabel: "Reasoning",
+        time: "4h ago",
+        timestamp: Date.now() - 14400000,
+        headline: "OpenAI GPT–6 Astra Solves Historic Cryptographic Verification Milestones",
+        source: "cryptocellar.org",
+        url: "https://news.ycombinator.com/"
+      },
+      {
+        id: "fb5",
+        cat: "ai",
+        catLabel: "Research",
+        time: "5h ago",
+        timestamp: Date.now() - 18000000,
+        headline: "DeepMind AlphaGeometry 2 IMO Mathematical Proof Architecture",
+        source: "deepmind.google",
+        url: "https://deepmind.google/discover/blog/"
+      }
+    ],
+    markets: [
+      {
+        id: "fb2",
+        cat: "markets",
+        catLabel: "Markets",
+        time: "3h ago",
+        timestamp: Date.now() - 10800000,
+        headline: "Nasdaq Hits Record High on Hyperscale CapEx & Sector Rotations",
+        source: "reuters.com",
+        url: "https://www.reuters.com/markets"
+      },
+      {
+        id: "fb6",
+        cat: "markets",
+        catLabel: "Macro",
+        time: "4h ago",
+        timestamp: Date.now() - 14400000,
+        headline: "Global Treasury Yield Curve Normalization & Digital Asset Liquidity",
+        source: "bloomberg.com",
+        url: "https://www.bloomberg.com/markets"
+      },
+      {
+        id: "fb7",
+        cat: "markets",
+        catLabel: "Fintech",
+        time: "6h ago",
+        timestamp: Date.now() - 21600000,
+        headline: "Institutional Inflows in Real-Time Cross-Border Settlement Networks",
+        source: "wsj.com",
+        url: "https://www.wsj.com/"
+      }
+    ],
+    tech: [
+      {
+        id: "fb3",
+        cat: "tech",
+        catLabel: "Engineering",
+        time: "4h ago",
+        timestamp: Date.now() - 14400000,
+        headline: "High-Performance Native Mac WebKit Runtimes in Modern Swift & Rust",
+        source: "news.ycombinator.com",
+        url: "https://news.ycombinator.com/"
+      },
+      {
+        id: "fb8",
+        cat: "tech",
+        catLabel: "Systems",
+        time: "6h ago",
+        timestamp: Date.now() - 21600000,
+        headline: "Linux 6.13 Clustered CPU Scheduling Optimizations for Apple Silicon",
+        source: "kernel.org",
+        url: "https://news.ycombinator.com/"
+      },
+      {
+        id: "fb9",
+        cat: "tech",
+        catLabel: "Developer Tools",
+        time: "8h ago",
+        timestamp: Date.now() - 28800000,
+        headline: "Zero-Copy Async I/O Framework Specification Approved by Standards Body",
+        source: "blog.rust-lang.org",
+        url: "https://blog.rust-lang.org/"
+      }
+    ]
+  };
+
+  let newsStories = JSON.parse(JSON.stringify(FALLBACK_NEWS));
+  let currentDeckMode = localStorage.getItem('onyx_deck_mode') || 'workspaces';
+  let currentNewsCategory = 'all';
+  let isFetchingLiveNews = false;
+
+  function renderNews(category) {
+    currentNewsCategory = category || 'all';
+    const container = document.getElementById('news-grid-container');
+    if (!container) return;
+    const items = newsStories[currentNewsCategory] || newsStories.all || [];
+
+    // Recalculate relative times based on item timestamps
+    items.forEach(it => {
+      if (it.timestamp) {
+        it.time = formatRelativeTime(it.timestamp);
+      }
+    });
+    
+    container.innerHTML = items.slice(0, 3).map(item => `
+      <a class="news-card" data-url="${item.url}" title="${item.headline.replace(/"/g, '&quot;')}" tabindex="0" role="article">
+        <div class="news-card-header">
+          <div class="news-tag-badge">
+            <span class="news-tag-dot ${item.cat}"></span>
+            <span>${item.catLabel}</span>
+          </div>
+          <span class="news-time-badge">${item.time}</span>
+        </div>
+        <div class="news-body">
+          <span class="news-headline">${item.headline}</span>
+        </div>
+        <div class="news-footer">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span>${item.source}</span>
+        </div>
+      </a>
+    `).join('');
+
+    // Attach click and keyboard listeners to news cards
+    container.querySelectorAll('.news-card').forEach(el => {
+      const openCard = () => {
+        const url = el.getAttribute('data-url');
+        if (url) {
+          triggerReaction('searching', 3000);
+          setTimeout(() => { OnyxBridge.openUrl(url); }, 120);
+        }
+      };
+      el.addEventListener('click', openCard);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openCard();
+        }
+      });
+    });
+  }
+
+  async function fetchLiveNews(isManualRefresh = false) {
+    if (isFetchingLiveNews) return;
+    isFetchingLiveNews = true;
+
+    const refreshBtn = document.getElementById('news-refresh-btn');
+    const statusPill = document.getElementById('news-status-pill');
+    const statusText = document.getElementById('news-status-text');
+
+    if (refreshBtn && isManualRefresh) {
+      refreshBtn.classList.add('spinning');
+    }
+    if (statusPill) {
+      statusPill.classList.add('updating');
+    }
+    if (statusText) {
+      statusText.textContent = isManualRefresh ? 'Updating...' : 'Syncing...';
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+      const fetchOpts = {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json, text/xml, */*' }
+      };
+
+      const [fpRes, aiRes, bzRes, mktRes, techRes] = await Promise.allSettled([
+        fetch('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30', fetchOpts).then(r => r.json()),
+        fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=AI&numericFilters=points>5&hitsPerPage=12', fetchOpts).then(r => r.json()),
+        fetch('https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en', fetchOpts).then(r => r.text()).catch(() => null),
+        fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=market&numericFilters=points>3&hitsPerPage=10', fetchOpts).then(r => r.json()),
+        fetch('https://hn.algolia.com/api/v1/search_by_date?tags=story&query=tech&numericFilters=points>8&hitsPerPage=12', fetchOpts).then(r => r.json())
+      ]);
+
+      clearTimeout(timeoutId);
+
+      const seenOids = new Set();
+      const seenTitles = new Set();
+
+      const formatHNItem = (h, forcedCat) => {
+        const title = (h.title || '').trim();
+        if (!title) return null;
+        const normTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (seenTitles.has(normTitle)) return null;
+        seenTitles.add(normTitle);
+
+        const cat = forcedCat || classifyStory(title, h.url);
+        const createdAt = (h.created_at_i ? h.created_at_i * 1000 : Date.now());
+        const url = h.url || `https://news.ycombinator.com/item?id=${h.objectID}`;
+        const source = cleanDomain(url);
+        const catLabel = getCategoryLabel(cat, title);
+
+        return {
+          id: 'hn_' + h.objectID,
+          cat,
+          catLabel,
+          time: formatRelativeTime(createdAt),
+          timestamp: createdAt,
+          headline: title,
+          source,
+          url
+        };
+      };
+
+      const newStories = { all: [], ai: [], markets: [], tech: [] };
+
+      // 1. Process Google News RSS for high-quality real-time Markets stories
+      if (bzRes.status === 'fulfilled' && bzRes.value) {
+        try {
+          const rssItems = parseGoogleNewsRSS(bzRes.value);
+          for (const it of rssItems) {
+            const normTitle = it.headline.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (seenTitles.has(normTitle)) continue;
+            seenTitles.add(normTitle);
+            newStories.markets.push({
+              id: it.id,
+              cat: 'markets',
+              catLabel: getCategoryLabel('markets', it.headline),
+              time: formatRelativeTime(it.timestamp),
+              timestamp: it.timestamp,
+              headline: it.headline,
+              source: it.source,
+              url: it.url
+            });
+            if (newStories.markets.length >= 6) break;
+          }
+        } catch (e) {
+          console.warn('[Onyx News] RSS parse fallback', e);
+        }
+      }
+
+      // 2. Process Front Page stories for 'all' and primary categories
+      if (fpRes.status === 'fulfilled' && fpRes.value && Array.isArray(fpRes.value.hits)) {
+        for (const h of fpRes.value.hits) {
+          if (seenOids.has(h.objectID)) continue;
+          seenOids.add(h.objectID);
+          const item = formatHNItem(h);
+          if (!item) continue;
+          newStories.all.push(item);
+          if (item.cat === 'ai') newStories.ai.push(item);
+          else if (item.cat === 'markets') newStories.markets.push(item);
+          else newStories.tech.push(item);
+        }
+      }
+
+      // 3. Process AI query stories
+      if (aiRes.status === 'fulfilled' && aiRes.value && Array.isArray(aiRes.value.hits)) {
+        for (const h of aiRes.value.hits) {
+          if (seenOids.has(h.objectID)) continue;
+          seenOids.add(h.objectID);
+          const item = formatHNItem(h, 'ai');
+          if (item) newStories.ai.push(item);
+        }
+      }
+
+      // 4. Process Markets query stories
+      if (mktRes.status === 'fulfilled' && mktRes.value && Array.isArray(mktRes.value.hits)) {
+        for (const h of mktRes.value.hits) {
+          if (seenOids.has(h.objectID)) continue;
+          seenOids.add(h.objectID);
+          const item = formatHNItem(h, 'markets');
+          if (item) newStories.markets.push(item);
+        }
+      }
+
+      // 5. Process Tech query stories
+      if (techRes.status === 'fulfilled' && techRes.value && Array.isArray(techRes.value.hits)) {
+        for (const h of techRes.value.hits) {
+          if (seenOids.has(h.objectID)) continue;
+          seenOids.add(h.objectID);
+          const item = formatHNItem(h, 'tech');
+          if (item) newStories.tech.push(item);
+        }
+      }
+
+      // Fallback guarantees: ensure each category has at least 3 stories
+      ['all', 'ai', 'markets', 'tech'].forEach(k => {
+        if (!newStories[k] || newStories[k].length === 0) {
+          newStories[k] = FALLBACK_NEWS[k] || FALLBACK_NEWS.all;
+        } else if (newStories[k].length < 3 && FALLBACK_NEWS[k]) {
+          FALLBACK_NEWS[k].forEach(fb => {
+            if (newStories[k].length < 3 && !newStories[k].some(s => s.headline === fb.headline)) {
+              newStories[k].push(fb);
+            }
+          });
+        }
+      });
+
+      // Save to local storage cache with today's dateKey
+      const todayDateKey = getTodayDateKey();
+      newsStories = newStories;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          dateKey: todayDateKey,
+          lastFetched: Date.now(),
+          stories: newStories
+        }));
+      } catch (e) {
+        console.warn('[Onyx News] LocalStorage write error', e);
+      }
+
+      // Smoothly update UI
+      renderNews(currentNewsCategory);
+
+      if (statusText) {
+        statusText.textContent = 'Today';
+      }
+    } catch (err) {
+      console.warn('[Onyx News] Live fetch error, preserving cached stories', err);
+      if (statusText) {
+        statusText.textContent = 'Today';
+      }
+    } finally {
+      isFetchingLiveNews = false;
+      if (refreshBtn) {
+        refreshBtn.classList.remove('spinning');
+      }
+      if (statusPill) {
+        statusPill.classList.remove('updating');
+      }
+    }
+  }
+
+  function initLiveNews() {
+    let hasLoadedCache = false;
+    const todayDateKey = getTodayDateKey();
+
+    try {
+      const cachedRaw = localStorage.getItem(STORAGE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached && cached.stories && cached.stories.all && cached.stories.all.length > 0) {
+          newsStories = cached.stories;
+          hasLoadedCache = true;
+          renderNews(currentNewsCategory);
+
+          // Check if cache is from a previous day or older than 3 hours
+          const isStale = (cached.dateKey !== todayDateKey) || (Date.now() - (cached.lastFetched || 0) > 3 * 3600 * 1000);
+          if (isStale) {
+            // Silently refresh for today in background
+            setTimeout(() => { fetchLiveNews(false); }, 600);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Onyx News] Cache parse error', e);
+    }
+
+    if (!hasLoadedCache) {
+      renderNews(currentNewsCategory);
+      setTimeout(() => { fetchLiveNews(false); }, 400);
+    }
+
+    // Daily & periodic update timer (checks every 10 minutes)
+    setInterval(() => {
+      const currentToday = getTodayDateKey();
+      try {
+        const cachedRaw = localStorage.getItem(STORAGE_KEY);
+        const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+        if (!cached || cached.dateKey !== currentToday || (Date.now() - (cached.lastFetched || 0) > 3 * 3600 * 1000)) {
+          fetchLiveNews(false);
+        } else {
+          // Re-render to update relative time badges (e.g. 5m ago -> 15m ago)
+          renderNews(currentNewsCategory);
+        }
+      } catch (e) {}
+    }, 10 * 60 * 1000);
+  }
+
+  function setDeckMode(mode, animate = true) {
+    const isModeChange = currentDeckMode !== mode;
+    currentDeckMode = mode;
+    localStorage.setItem('onyx_deck_mode', mode);
+
+    const btnWorkspaces = document.getElementById('deck-btn-workspaces');
+    const btnNews = document.getElementById('deck-btn-news');
+    const viewWorkspaces = document.getElementById('deck-view-workspaces');
+    const viewNews = document.getElementById('deck-view-news');
+    const hintWorkspaces = document.getElementById('deck-workspaces-hint');
+    const metaNews = document.getElementById('deck-news-meta');
+
+    if (mode === 'news') {
+      btnWorkspaces?.classList.remove('active');
+      btnWorkspaces?.setAttribute('aria-selected', 'false');
+      btnNews?.classList.add('active');
+      btnNews?.setAttribute('aria-selected', 'true');
+
+      viewWorkspaces?.classList.add('hidden');
+      viewNews?.classList.remove('hidden');
+
+      if (hintWorkspaces) hintWorkspaces.style.display = 'none';
+      if (metaNews) metaNews.style.display = 'flex';
+
+      renderNews(currentNewsCategory);
+    } else {
+      btnNews?.classList.remove('active');
+      btnNews?.setAttribute('aria-selected', 'false');
+      btnWorkspaces?.classList.add('active');
+      btnWorkspaces?.setAttribute('aria-selected', 'true');
+
+      viewNews?.classList.add('hidden');
+      viewWorkspaces?.classList.remove('hidden');
+
+      if (hintWorkspaces) hintWorkspaces.style.display = 'block';
+      if (metaNews) metaNews.style.display = 'none';
+    }
+
+    if (isModeChange) {
+      const cards = mode === 'news'
+        ? document.querySelectorAll('#deck-view-news .news-card')
+        : document.querySelectorAll('#deck-view-workspaces .workspace-card');
+      cards.forEach((card, i) => {
+        card.style.animation = 'none';
+        card.offsetHeight;
+        card.style.animation = `cardEntrance 360ms cubic-bezier(0.16, 1, 0.3, 1) ${i * 40}ms both`;
+      });
+    }
+  }
+
+  // Segmented Pill Buttons Click
+  document.getElementById('deck-btn-workspaces')?.addEventListener('click', () => setDeckMode('workspaces'));
+  document.getElementById('deck-btn-news')?.addEventListener('click', () => setDeckMode('news'));
+
+  // Category filter buttons
+  document.querySelectorAll('.news-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.news-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderNews(btn.getAttribute('data-cat'));
+    });
+  });
+
+  // News Refresh button
+  const refreshBtn = document.getElementById('news-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      triggerReaction('working', 1400);
+      fetchLiveNews(true);
+    });
+  }
+
+  // Restore saved deck mode & initialize live everyday news engine
+  setDeckMode(currentDeckMode);
+  initLiveNews();
+
+  // Replay startup entrance animation anytime the Onyx title is clicked
+  function replayStartupAnimation() {
+    triggerReaction('active', 1200);
+    const elements = document.querySelectorAll('.fade-in, .workspace-card, .favorite-item');
+    elements.forEach(el => {
+      el.style.animation = 'none';
+      el.offsetHeight;
+      el.style.animation = '';
+    });
+  }
+  // Quick Bang Chips Handler (Engine Mode Selector with Signature Aura Glow)
+  document.querySelectorAll('.bang-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.preventDefault();
+      OnyxBridge.vibrate(10);
+      const engineKey = chip.getAttribute('data-engine');
+      setEngineMode(engineKey);
+    });
+  });
+
+  // Mobile Bottom Workflow Bar Navigation
+  const mobNavHome = document.getElementById('mob-nav-home');
+  const mobNavWorkspaces = document.getElementById('mob-nav-workspaces');
+  const mobNavAi = document.getElementById('mob-nav-ai');
+  const mobNavNews = document.getElementById('mob-nav-news');
+  const mobNavSettings = document.getElementById('mob-nav-settings');
+
+  function updateMobileNav(activeId) {
+    document.querySelectorAll('.mobile-nav-item').forEach(item => item.classList.remove('active'));
+    document.getElementById(activeId)?.classList.add('active');
+  }
+
+  mobNavHome?.addEventListener('click', () => {
+    OnyxBridge.vibrate(8);
+    updateMobileNav('mob-nav-home');
+    closeAllSheets();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    searchInput.focus();
+  });
+
+  mobNavWorkspaces?.addEventListener('click', () => {
+    OnyxBridge.vibrate(10);
+    updateMobileNav('mob-nav-workspaces');
+    openSheet('sheet-workspaces');
+  });
+
+  mobNavAi?.addEventListener('click', () => {
+    OnyxBridge.vibrate(12);
+    updateMobileNav('mob-nav-ai');
+    openSheet('sheet-ai');
+  });
+
+  mobNavNews?.addEventListener('click', () => {
+    OnyxBridge.vibrate(8);
+    updateMobileNav('mob-nav-news');
+    closeAllSheets();
+    setDeckMode('news');
+    const deckSec = document.querySelector('.deck-section');
+    if (deckSec) deckSec.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  mobNavSettings?.addEventListener('click', () => {
+    OnyxBridge.openSettings();
+  });
+
+  // Touch Swipe Gesture on Deck Section (Workspaces <-> News)
+  let deckTouchStartX = 0;
+  let deckTouchStartY = 0;
+  const deckSection = document.querySelector('.deck-section');
+  if (deckSection) {
+    deckSection.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        deckTouchStartX = e.touches[0].clientX;
+        deckTouchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    deckSection.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - deckTouchStartX;
+        const dy = e.changedTouches[0].clientY - deckTouchStartY;
+        if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+          if (dx < 0) {
+            setDeckMode('news');
+            OnyxBridge.vibrate(10);
+          } else {
+            setDeckMode('workspaces');
+            OnyxBridge.vibrate(10);
+          }
+        }
+      }
+    }, { passive: true });
+  }
+
+  // Close sheets on Escape key
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAllSheets();
+    }
+  });
+
+  document.getElementById('onyx-title')?.addEventListener('click', replayStartupAnimation);
+</script>
+</body>
+</html>

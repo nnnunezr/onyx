@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Onyx" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/onyx_bg</item>
+        <item name="android:statusBarColor">@color/onyx_bg</item>
+        <item name="android:navigationBarColor">@color/onyx_bg</item>
+        <item name="colorPrimary">@color/onyx_text</item>
+        <item name="colorPrimaryVariant">@color/onyx_bg</item>
+        <item name="colorOnPrimary">@color/onyx_bg</item>
+        <item name="colorSecondary">@color/onyx_green</item>
+        <item name="colorSurface">@color/onyx_surface</item>
+        <item name="colorOnSurface">@color/onyx_text</item>
+    </style>
+</resources>

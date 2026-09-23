@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070709">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Settings — Onyx</title>
+<style>
+  :root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+
+    --bg: #070709;
+    --sidebar-bg: rgba(12, 12, 16, 0.75);
+    --surface: rgba(255, 255, 255, 0.035);
+    --surface-hover: rgba(255, 255, 255, 0.065);
+    --surface-active: rgba(255, 255, 255, 0.10);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.16);
+    --border-focus: rgba(255, 255, 255, 0.32);
+
+    --text: #ffffff;
+    --text-muted: #a1a1aa;
+    --text-subtle: #71717a;
+    --text-dim: #52525b;
+
+    --accent-purple: #a855f7;
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-pink: #ec4899;
+
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  button, input, select, textarea {
+    margin: 0;
+    font: inherit;
+    color: inherit;
+  }
+
+  /* App Shell Grid */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Sidebar Navigation Rail (Fixed 240px expanded) */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding: var(--space-6) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-3);
+  }
+
+  .sidebar-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--space-2);
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.04) 100%);
+    border: 1px solid var(--border-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-logo svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--text);
+  }
+
+  .sidebar-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .sidebar-badge {
+    font-size: 10px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    padding: 2px 6px;
+    color: var(--text-muted);
+  }
+
+  .nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .nav-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--space-2);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: all 180ms var(--ease-out);
+  }
+
+  .nav-item:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .nav-item.active {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid var(--border);
+  }
+
+  .nav-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 180ms var(--ease-out);
+  }
+
+  .nav-item:hover svg,
+  .nav-item.active svg {
+    opacity: 1;
+  }
+
+  /* Main Content Area */
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-8) var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    max-width: 900px;
+  }
+
+  .content-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .content-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .content-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* Section Card */
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--space-3);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: 44px;
+    padding: var(--space-2) 0;
+  }
+
+  .row-item:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .row-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: 65%;
+  }
+
+  .row-title {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .row-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .row-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* iOS / macOS Style Toggle Switch */
+  .toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--border);
+    transition: 240ms var(--ease-out);
+    border-radius: 24px;
+  }
+
+  .slider::before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ffffff;
+    transition: 240ms var(--ease-out);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  input:checked + .slider {
+    background-color: var(--accent-blue);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  input:checked + .slider::before {
+    transform: translateX(20px);
+  }
+
+  /* Select dropdown */
+  .custom-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: var(--space-2);
+    padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    height: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: all 180ms var(--ease-out);
+  }
+
+  .custom-select:hover {
+    border-color: var(--border-hover);
+    background-color: rgba(255, 255, 255, 0.09);
+  }
+
+  .custom-select:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+  }
+
+  .custom-select option {
+    background-color: #121218;
+    color: #ffffff;
+  }
+
+  /* Action Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-4);
+    border-radius: var(--space-2);
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 180ms var(--ease-out);
+    white-space: nowrap;
+  }
+
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+  }
+
+  .btn:active {
+    background: var(--surface-active);
+    transform: scale(0.98);
+  }
+
+  .btn-primary {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-primary:hover {
+    background: rgba(255, 255, 255, 0.20);
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .btn-danger {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.08);
+  }
+
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.45);
+  }
+
+  /* Text input */
+  .text-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: var(--space-2);
+    padding: 0 var(--space-3);
+    height: 36px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: all 180ms var(--ease-out);
+  }
+
+  .text-input:focus {
+    border-color: var(--border-focus);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Workspaces Grid */
+  .workspaces-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .workspace-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--border);
+    border-radius: var(--space-3);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    position: relative;
+    transition: all 200ms var(--ease-out);
+  }
+
+  .workspace-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-hover);
+  }
+
+  .workspace-card.active {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .workspace-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .workspace-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .workspace-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .active-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .workspace-stats {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .workspace-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+
+  /* Color Swatches for Workspace Creator */
+  .color-swatches {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 180ms var(--ease-out);
+  }
+
+  .color-swatch:hover {
+    transform: scale(1.15);
+  }
+
+  .color-swatch.selected {
+    border-color: #ffffff;
+    transform: scale(1.1);
+  }
+
+  /* Toast Notification */
+  .toast {
+    position: fixed;
+    bottom: var(--space-6);
+    right: var(--space-6);
+    background: #18181f;
+    border: 1px solid var(--border-hover);
+    color: #ffffff;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--space-2);
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 240ms var(--ease-out);
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Shield Stats Badge */
+  .shield-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: var(--space-2);
+    color: var(--accent-green);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .shield-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+  }
+
+  /* Mobile Settings Navigation Header */
+  .mobile-settings-topbar {
+    display: none;
+  }
+  .mobile-category-tabs {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .app-shell {
+      flex-direction: column;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      display: none !important;
+    }
+
+    .mobile-settings-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: calc(56px + var(--sat));
+      padding-top: var(--sat);
+      padding-left: var(--space-4);
+      padding-right: var(--space-4);
+      background: rgba(10, 10, 14, 0.94);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .mobile-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      height: 36px;
+      padding: 0 14px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+      touch-action: manipulation;
+    }
+
+    .mobile-back-btn:active {
+      background: rgba(255, 255, 255, 0.16);
+      transform: scale(0.95);
+    }
+
+    .mobile-topbar-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+
+    .mobile-category-tabs {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      position: sticky;
+      top: calc(56px + var(--sat));
+      background: rgba(10, 10, 14, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-2) var(--space-4);
+      z-index: 99;
+    }
+    .mobile-category-tabs::-webkit-scrollbar { display: none; }
+
+    .mobile-cat-tab {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+      touch-action: manipulation;
+    }
+
+    .mobile-cat-tab.active {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--border-focus);
+      color: #ffffff;
+    }
+
+    .main-content {
+      padding: var(--space-4) var(--space-4) calc(var(--space-10) + var(--sab));
+    }
+
+    .setting-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-3);
+    }
+
+    .setting-ctrl {
+      width: 100%;
+      justify-content: flex-end;
+    }
+
+    .workspaces-grid,
+    .shortcuts-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Mobile Navigation Topbar & Category Bar -->
+  <header class="mobile-settings-topbar">
+    <button type="button" class="mobile-back-btn" onclick="exitSettings()" aria-label="Back to Browser">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      <span>Back</span>
+    </button>
+    <div class="mobile-topbar-title">Settings</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <nav class="mobile-category-tabs">
+    <button type="button" class="mobile-cat-tab active" data-sec="general" onclick="switchSection('general')">General</button>
+    <button type="button" class="mobile-cat-tab" data-sec="workspaces" onclick="switchSection('workspaces')">Workspaces</button>
+    <button type="button" class="mobile-cat-tab" data-sec="shield" onclick="switchSection('shield')">Shield</button>
+    <button type="button" class="mobile-cat-tab" data-sec="appearance" onclick="switchSection('appearance')">Appearance</button>
+    <button type="button" class="mobile-cat-tab" data-sec="passwords" onclick="switchSection('passwords')">Vault</button>
+    <button type="button" class="mobile-cat-tab" data-sec="about" onclick="switchSection('about')">About</button>
+  </nav>
+
+  <!-- Sidebar Navigation Rail (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <!-- Orbital rings matching homepage 3D particle orb -->
+          <ellipse cx="12" cy="12" rx="8.8" ry="4.6" transform="rotate(-26 12 12)" stroke="currentColor" stroke-width="1.3" opacity="0.9"/>
+          <ellipse cx="12" cy="12" rx="8.2" ry="3.8" transform="rotate(48 12 12)" stroke="currentColor" stroke-width="1" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <!-- Central singularity nexus -->
+          <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+          <!-- Harmonic beacon nodes -->
+          <circle cx="4.5" cy="8.4" r="1.2" fill="currentColor"/>
+          <circle cx="19.4" cy="15.5" r="1.3" fill="currentColor"/>
+          <circle cx="15.8" cy="6.2" r="1.0" fill="currentColor"/>
+          <circle cx="8.2" cy="17.8" r="1.0" fill="currentColor"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sidebar-title">Onyx</div>
+      </div>
+      <span class="sidebar-badge">Settings</span>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-header">Preferences</div>
+      <button class="nav-item active" onclick="switchSection('general')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>General</span>
+      </button>
+
+      <button class="nav-item" onclick="switchSection('workspaces')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Workspaces</span>
+      </button>
+
+      <button class="nav-item" onclick="switchSection('shield')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        <span>Onyx Shield & YT</span>
+      </button>
+
+      <button class="nav-item" onclick="switchSection('appearance')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <span>Appearance</span>
+      </button>
+
+      <button class="nav-item" onclick="switchSection('passwords')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>Passwords & Vault</span>
+      </button>
+
+      <button class="nav-item" onclick="switchSection('about')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>About & System</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    
+    <!-- 1. GENERAL SECTION -->
+    <section id="section-general" class="settings-section">
+      <div class="content-header">
+        <div class="content-title">
+          <span>General Settings</span>
+        </div>
+        <div class="content-desc">Configure search engines, startup options, bookmarks bar, and download destinations.</div>
+      </div>
+
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Default Search Engine</div>
+            <div class="row-desc">Used when typing standard queries or keywords into the top omnibar without a bang.</div>
+          </div>
+          <div class="row-control">
+            <select id="select-search-engine" class="custom-select" onchange="updateSearchEngine(this.value)">
+              <option value="duckduckgo">DuckDuckGo (AI Chat Ready)</option>
+              <option value="google">Google</option>
+              <option value="brave">Brave Search (Private)</option>
+              <option value="perplexity">Perplexity AI</option>
+              <option value="kagi">Kagi Search</option>
+              <option value="bing">Microsoft Bing</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">On Startup</div>
+            <div class="row-desc">Choose what opens whenever you launch Onyx or open a new window.</div>
+          </div>
+          <div class="row-control">
+            <select id="select-startup" class="custom-select" onchange="updateStartup(this.value)">
+              <option value="startpage">Onyx Canvas (Startpage)</option>
+              <option value="restore">Restore previous session tabs</option>
+              <option value="blank">Blank slate</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Always Show Bookmarks Bar</div>
+            <div class="row-desc">Displays the bookmarks shelf directly beneath the unified top bar (shortcut: ⌘⇧B).</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-bookmarks" onchange="toggleBookmarksBar(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Downloads Location</div>
+            <div class="row-desc">Files are downloaded directly to your macOS user Downloads directory.</div>
+          </div>
+          <div class="row-control">
+            <button class="btn" onclick="openDownloadsFolder()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Open in Finder
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. WORKSPACES SECTION -->
+    <section id="section-workspaces" class="settings-section" style="display: none;">
+      <div class="content-header">
+        <div class="content-title">
+          <span>Workspaces & Profiles</span>
+        </div>
+        <div class="content-desc">Manage isolated browsing spaces. Each workspace keeps its own tabs, cookies, and local sessions.</div>
+      </div>
+
+      <div class="section-label">Active Workspaces</div>
+      <div id="workspaces-container" class="workspaces-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="section-label" style="margin-top: var(--space-4);">Create New Workspace</div>
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Workspace Name</div>
+            <div class="row-desc">Give your new context a recognizable name (e.g. "Crypto", "Side Project").</div>
+          </div>
+          <div class="row-control">
+            <input type="text" id="new-workspace-name" class="text-input" placeholder="e.g. Work, Trading" style="width: 200px;">
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Accent Color</div>
+            <div class="row-desc">Identifies this workspace in the top bar pill and edge glow animations.</div>
+          </div>
+          <div class="row-control">
+            <div class="color-swatches" id="color-swatches">
+              <div class="color-swatch selected" data-color="#A855F7" style="background: #A855F7;" onclick="selectColor(this)"></div>
+              <div class="color-swatch" data-color="#EC4899" style="background: #EC4899;" onclick="selectColor(this)"></div>
+              <div class="color-swatch" data-color="#06B6D4" style="background: #06B6D4;" onclick="selectColor(this)"></div>
+              <div class="color-swatch" data-color="#F97316" style="background: #F97316;" onclick="selectColor(this)"></div>
+              <div class="color-swatch" data-color="#10B981" style="background: #10B981;" onclick="selectColor(this)"></div>
+              <div class="color-swatch" data-color="#E4E4E7" style="background: #E4E4E7;" onclick="selectColor(this)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+          <button class="btn btn-primary" onclick="createWorkspace()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Create Workspace
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ONYX SHIELD & YOUTUBE AD BLOCKER SECTION -->
+    <section id="section-shield" class="settings-section" style="display: none;">
+      <div class="content-header">
+        <div class="content-title">
+          <span>Onyx Shield & YouTube Ad Engine</span>
+          <div class="shield-badge">
+            <div class="shield-pulse"></div>
+            <span>Shield Active</span>
+          </div>
+        </div>
+        <div class="content-desc">Zero-compromise privacy protection. Eliminates video ads, trackers, and anti-adblock detection.</div>
+      </div>
+
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Global Web Ad & Tracker Blocking</div>
+            <div class="row-desc">High-speed native WebKit ContentRuleList blocks ad networks (DoubleClick, Criteo, GoogleAdServices).</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-adblock" checked onchange="toggleAdblock(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">YouTube Video Ad Skipping & Acceleration</div>
+            <div class="row-desc">Fast-forwards video pre-rolls/mid-rolls at 16x speed, mutes ad audio, and triggers auto-skip immediately.</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-yt-skip" checked disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Anti-Adblock Modal Neutralizer</div>
+            <div class="row-desc">Automatically dismisses YouTube's "Ad blockers are not allowed" dialogs and restores natural playback.</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-yt-popup" checked disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">InnerTube JSON Ad Pruning (uBlock Origin pattern)</div>
+            <div class="row-desc">Strips adSlots and adPlacements payloads before the HTML5 video player initializes them.</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-yt-prune" checked disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Clear Active Profile Browsing Data</div>
+            <div class="row-desc">Purges cookies, cache, and indexed data for the currently active workspace.</div>
+          </div>
+          <div class="row-control">
+            <button class="btn btn-danger" onclick="clearProfileCache()">Clear Data Now</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. APPEARANCE SECTION -->
+    <section id="section-appearance" class="settings-section" style="display: none;">
+      <div class="content-header">
+        <div class="content-title">
+          <span>Appearance & Design</span>
+        </div>
+        <div class="content-desc">Fine-tune Onyx's pitch-black aesthetics, typography, and fluid micro-interactions.</div>
+      </div>
+
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Interface Theme</div>
+            <div class="row-desc">Engineered for OLED displays with zero backlight bleed and high text contrast.</div>
+          </div>
+          <div class="row-control">
+            <select class="custom-select" id="select-theme">
+              <option value="pitch-black">Pitch Black OLED (Default)</option>
+              <option value="slate">Deep Slate</option>
+              <option value="frosted">Frosted Glass</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Live News Ticker on Startpage</div>
+            <div class="row-desc">Displays curated live market and AI tech headlines on the canvas home screen.</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-news" checked onchange="toggleNewsTicker(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Motion & Transitions</div>
+            <div class="row-desc">Anime.js inspired fluid spring curves for tab switching, hover pills, and dialogs.</div>
+          </div>
+          <div class="row-control">
+            <span style="font-size: 12px; color: var(--text-muted);">Fluid 60 FPS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. PASSWORDS SECTION -->
+    <section id="section-passwords" class="settings-section" style="display: none;">
+      <div class="content-header">
+        <div class="content-title">
+          <span>Passwords & Vault</span>
+        </div>
+        <div class="content-desc">Native macOS Keychain integration for encrypted autofill and login security.</div>
+      </div>
+
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Manage Passwords Vault</div>
+            <div class="row-desc">View, edit, search, and export your securely stored website credentials.</div>
+          </div>
+          <div class="row-control">
+            <button class="btn btn-primary" onclick="openPasswordsManager()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              Open Passwords Manager
+            </button>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Offer to Save Passwords</div>
+            <div class="row-desc">Prompts to save new credentials in macOS Keychain when logging into websites.</div>
+          </div>
+          <div class="row-control">
+            <label class="toggle">
+              <input type="checkbox" checked onchange="showToast('Password prompt preference saved')">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. ABOUT SECTION -->
+    <section id="section-about" class="settings-section" style="display: none;">
+      <div class="content-header">
+        <div class="content-title">
+          <span>About Onyx & System</span>
+        </div>
+        <div class="content-desc">Ultra-low RAM native browser engineered for Apple Silicon macOS.</div>
+      </div>
+
+      <div class="card">
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Version</div>
+            <div class="row-desc">Onyx 1.0.0 (Native WebKit · arm64 Apple Silicon)</div>
+          </div>
+          <div class="row-control">
+            <span style="font-size: 12px; color: var(--text-muted);">Up to date</span>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Rendering Engine</div>
+            <div class="row-desc">Apple WebKit 605.1.15 · Safari 18.3 Engine</div>
+          </div>
+          <div class="row-control">
+            <span style="font-size: 12px; color: var(--accent-green);">Metal GPU Accelerated</span>
+          </div>
+        </div>
+
+        <div class="row-item">
+          <div class="row-info">
+            <div class="row-title">Memory Footprint</div>
+            <div class="row-desc">Ultra-efficient process architecture consuming ~30-50 MB RAM at idle.</div>
+          </div>
+          <div class="row-control">
+            <span style="font-size: 12px; color: var(--accent-green); font-family: monospace;">~38.4 MB RAM</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast element -->
+<div id="toast" class="toast">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"></polyline>
+  </svg>
+  <span id="toast-text">Settings updated</span>
+</div>
+
+<script>
+  let currentSettings = {
+    searchEngine: 'duckduckgo',
+    startup: 'startpage',
+    showBookmarksBar: false,
+    adBlockEnabled: true,
+    activeProfileId: 'personal',
+    profiles: []
+  };
+
+  let selectedNewColor = '#A855F7';
+
+  // Section switcher
+  function switchSection(sectionId) {
+    document.querySelectorAll('.settings-section').forEach(s => s.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mobile-cat-tab').forEach(t => t.classList.remove('active'));
+
+    const targetSection = document.getElementById('section-' + sectionId);
+    if (targetSection) targetSection.style.display = 'flex';
+
+    // Highlight active nav item and mobile tab
+    document.querySelectorAll(`[onclick*="'${sectionId}'"]`).forEach(el => el.classList.add('active'));
+  }
+
+  function exitSettings() {
+    if (window.OnyxAndroid && window.OnyxAndroid.closeSettings) {
+      window.OnyxAndroid.closeSettings();
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = 'startpage.html';
+    }
+  }
+
+  // Toast
+  let toastTimer = null;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    toastText.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2400);
+  }
+
+  // Workspaces render
+  function renderWorkspaces(profiles, activeId) {
+    const container = document.getElementById('workspaces-container');
+    container.innerHTML = '';
+
+    profiles.forEach(p => {
+      const isActive = (p.id === activeId);
+      const card = document.createElement('div');
+      card.className = 'workspace-card' + (isActive ? ' active' : '');
+      card.innerHTML = `
+        <div class="workspace-header">
+          <div class="workspace-identity">
+            <div class="workspace-dot" style="background: ${p.colorHex}; box-shadow: 0 0 8px ${p.colorHex}88;"></div>
+            <div class="workspace-name">${escapeHTML(p.name)}</div>
+          </div>
+          ${isActive ? '<span class="active-badge">Active</span>' : ''}
+        </div>
+        <div class="workspace-stats">${p.tabCount || 0} open tab${p.tabCount === 1 ? '' : 's'}</div>
+        <div class="workspace-actions">
+          ${!isActive ? `<button class="btn" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" onclick="switchWorkspace('${p.id}')">Switch</button>` : ''}
+          ${!p.isDefault && !isActive ? `<button class="btn btn-danger" style="height: 28px; font-size: 11.5px; padding: 0 var(--space-3);" onclick="deleteWorkspace('${p.id}')">Delete</button>` : ''}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function selectColor(el) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedNewColor = el.getAttribute('data-color');
+  }
+
+  // Swift Native Messaging
+  function sendToSwift(action, data = {}) {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.onyxSettings) {
+      window.webkit.messageHandlers.onyxSettings.postMessage({ action, ...data });
+    }
+  }
+
+  function updateSearchEngine(val) {
+    sendToSwift('setSearchEngine', { engine: val });
+    localStorage.setItem('onyx_search_engine', val);
+    if (window.OnyxAndroid && window.OnyxAndroid.setSearchEngine) {
+      window.OnyxAndroid.setSearchEngine(val);
+    }
+    showToast(`Default search set to ${val.charAt(0).toUpperCase() + val.slice(1)}`);
+  }
+
+  function updateStartup(val) {
+    sendToSwift('setStartup', { startup: val });
+    showToast('Startup preference saved');
+  }
+
+  function toggleBookmarksBar(checked) {
+    sendToSwift('setShowBookmarksBar', { show: checked });
+    showToast(checked ? 'Bookmarks bar shown' : 'Bookmarks bar hidden');
+  }
+
+  function toggleAdblock(checked) {
+    sendToSwift('setAdBlockEnabled', { enabled: checked });
+    showToast(checked ? 'Global ad shield enabled' : 'Ad shield paused');
+  }
+
+  function toggleNewsTicker(checked) {
+    sendToSwift('setNewsTickerEnabled', { enabled: checked });
+    showToast(checked ? 'News ticker enabled' : 'News ticker hidden');
+  }
+
+  function openDownloadsFolder() {
+    sendToSwift('openDownloads');
+  }
+
+  function openPasswordsManager() {
+    sendToSwift('openPasswords');
+  }
+
+  function clearProfileCache() {
+    sendToSwift('clearCache');
+    showToast('Active profile cache & cookies cleared');
+  }
+
+  function switchWorkspace(id) {
+    sendToSwift('switchWorkspace', { profileId: id });
+    showToast('Switched workspace');
+  }
+
+  function createWorkspace() {
+    const input = document.getElementById('new-workspace-name');
+    const name = input.value.trim();
+    if (!name) {
+      input.focus();
+      return;
+    }
+    sendToSwift('createWorkspace', { name: name, color: selectedNewColor });
+    input.value = '';
+    showToast(`Workspace "${name}" created`);
+  }
+
+  function deleteWorkspace(id) {
+    if (confirm('Are you sure you want to delete this workspace and close its tabs?')) {
+      sendToSwift('deleteWorkspace', { profileId: id });
+      showToast('Workspace deleted');
+    }
+  }
+
+  // Receive settings from Swift
+  window.receiveSettings = function(data) {
+    if (!data) return;
+    currentSettings = data;
+
+    if (data.searchEngine) {
+      const sel = document.getElementById('select-search-engine');
+      if (sel) sel.value = data.searchEngine;
+      localStorage.setItem('onyx_search_engine', data.searchEngine);
+    }
+
+    if (data.showBookmarksBar !== undefined) {
+      const toggle = document.getElementById('toggle-bookmarks');
+      if (toggle) toggle.checked = !!data.showBookmarksBar;
+    }
+
+    if (data.adBlockEnabled !== undefined) {
+      const toggle = document.getElementById('toggle-adblock');
+      if (toggle) toggle.checked = !!data.adBlockEnabled;
+    }
+
+    if (data.profiles && Array.isArray(data.profiles)) {
+      renderWorkspaces(data.profiles, data.activeProfileId);
+    }
+  };
+
+  // Initial load request
+  document.addEventListener('DOMContentLoaded', () => {
+    sendToSwift('getSettings');
+  });
+</script>
+
+</body>
+</html>
