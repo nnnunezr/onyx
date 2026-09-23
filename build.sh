@@ -13,7 +13,7 @@ swift "$DIR/generate_icon.swift"
 iconutil -c icns "$DIR/Onyx.iconset" -o "$DIR/AppIcon.icns"
 
 echo "==> Step 2: Compiling Onyx native binary with WebKit..."
-swiftc -target arm64-apple-macos14.0 -sdk $(xcrun --show-sdk-path) -O "$DIR/main.swift" -o "$DIR/onyx"
+find "$DIR/Sources" -name '*.swift' -print0 | xargs -0 swiftc -target arm64-apple-macos14.0 -sdk "$(xcrun --show-sdk-path)" -O -wmo -module-name Onyx -o "$DIR/onyx"
 
 echo "==> Step 3: Packaging standalone $APP_NAME.app bundle..."
 rm -rf "$APP_DIR"

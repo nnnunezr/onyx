@@ -1,0 +1,321 @@
+import Cocoa
+import WebKit
+import UniformTypeIdentifiers
+
+// MARK: - Main Browser Window Controller
+class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, NSTextFieldDelegate, WKScriptMessageHandler {
+    // Downloads Management
+    var downloads: [OnyxDownloadItem] = []
+    var activeDownloads: [WKDownload: OnyxDownloadItem] = [:]
+    var downloadsButton: DownloadsNavButton!
+    var downloadsPopover: NSPopover?
+    var downloadProgressTimer: Timer?
+    var activeDownloadHUD: DownloadNotificationHUD?
+    
+    // Password Vault & Security Management
+    var passwordStore = OnyxPasswordStore.shared
+    var passwordsButton: PasswordsNavButton!
+    var passwordsPopover: NSPopover?
+    var passwordSearchField: NSTextField?
+    var passwordRowsStack: NSStackView?
+    var passwordCountLabel: NSTextField?
+    var activeToastHUD: OnyxToastHUD?
+    var activeSavePromptHUD: OnyxSavePasswordHUD?
+    
+    // Toolbar Extensions & Pinning System
+    var extensionsButton: NavIconButton!
+    var extensionsPopover: NSPopover?
+    var extensionsStack: NSStackView!
+    var trailingControlsStack: NSStackView!
+    
+    // WebKit Shared Configuration with High-Speed Engine Tuning
+    let sharedConfiguration: WKWebViewConfiguration = {
+        let config = WKWebViewConfiguration()
+        config.allowsAirPlayForMediaPlayback = true
+        config.preferences.isElementFullscreenEnabled = true
+        
+        // 1. Instant rendering optimization (don't delay painting until full page finishes)
+        config.suppressesIncrementalRendering = false
+        
+        // 2. Persistent disk caching & website data store
+        config.websiteDataStore = WKWebsiteDataStore.default()
+        
+        // 3. Fast JavaScript configuration
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
+        
+        return config
+    }()
+    
+    // Profile Management (Multi-Profile System with Isolated DataStores)
+    var profiles: [BrowserProfile] = [
+        BrowserProfile(id: "personal", name: "Personal", iconName: "person.crop.circle", colorHex: "#FFFFFF", isDefault: true),
+        BrowserProfile(id: "research", name: "Research & AI", iconName: "sparkles", colorHex: "#E2E8F0", isDefault: false),
+        BrowserProfile(id: "trading", name: "Markets & Trading", iconName: "chart.xyaxis.line", colorHex: "#34D399", isDefault: false),
+        BrowserProfile(id: "campus", name: "Campus / Academic", iconName: "graduationcap", colorHex: "#FBBF24", isDefault: false)
+    ]
+    var activeProfile: BrowserProfile = BrowserProfile(id: "personal", name: "Personal", iconName: "person.crop.circle", colorHex: "#FFFFFF", isDefault: true)
+    var profileTabs: [String: [BrowserTab]] = [:]
+    var profileActiveIndices: [String: Int] = [:]
+    var profileConfigurations: [String: WKWebViewConfiguration] = [:]
+    var profileButton: ProfilePillButton!
+    var profilePopover: NSPopover?
+    var edgeGlowView: DirectionalEdgeGlowView!
+    var adBlockRuleList: WKContentRuleList?
+    
+    // Tab Management (Resilient Index Guarding)
+    var tabs: [BrowserTab] = []
+    var activeTabIndex: Int = 0
+    var activeTab: BrowserTab {
+        if activeTabIndex >= 0 && activeTabIndex < tabs.count {
+            return tabs[activeTabIndex]
+        }
+        if let first = tabs.first {
+            return first
+        }
+        return BrowserTab(url: startPageURL, configuration: configuration(for: activeProfile))
+    }
+    var activeWebView: WKWebView { return activeTab.webView }
+    
+    var webContainerView: NSView!
+    var searchContainer: NSView!
+    var searchField: CustomSearchBar!
+    var searchFaviconView: NSImageView!
+    var searchThinkingOrb: ThinkingOrbView!
+    var searchShortcutBadge: NSTextField!
+    var backButton: NavIconButton!
+    var forwardButton: NavIconButton!
+    var reloadButton: NavIconButton!
+    var topBar: NSView!
+    var topBarSeparator: NSBox!
+    
+    // Tab Bar
+    var tabBar: TabBarView!
+    var tabStack: NSStackView!
+    var newTabBtn: NavIconButton!
+    var suggestedTabsBtn: NavIconButton!
+    var suggestedPopover: NSPopover?
+    var tabSeparator: NSBox!
+    
+    // Browsing Suggestions & History
+    var browsingHistory: [BrowsingHistoryItem] = []
+    var suggestionsPopover: NSPopover?
+    var suggestionsView: BrowsingSuggestionsView?
+    var activeSuggestionTask: URLSessionDataTask?
+    
+    // Bookmarks Bar
+    var bookmarksBar: BookmarksBarView!
+    var bookmarksStack: NSStackView!
+    var manageBookmarksBtn: NavIconButton!
+    var bookmarksBarHeightConstraint: NSLayoutConstraint!
+    var bookmarksSeparator: NSBox!
+    var bookmarkButtons: [BookmarkButton] = []
+    weak var hoveredBookmarkButton: BookmarkButton?
+    var bookmarkManagerPopover: NSPopover?
+    var bookmarkManagerStack: NSStackView?
+    var bookmarkManagerCountLabel: NSTextField?
+    
+    var progressBar: NSBox!
+    var progressConstraint: NSLayoutConstraint!
+    var shieldButton: NavIconButton!
+    
+    static let defaultBookmarks: [BookmarkItem] = [
+        BookmarkItem(title: "NinjaTrader", shortcut: "⌘1", urlString: "https://web.ninjatrader.com/trading-mode", domain: "ninjatrader.com", iconName: "chart.line.uptrend.xyaxis"),
+        BookmarkItem(title: "Tablero", shortcut: "⌘2", urlString: "https://canvas.unapec.edu.do/", domain: "unapec.edu.do", iconName: "graduationcap"),
+        BookmarkItem(title: "Conflictly", shortcut: "⌘3", urlString: "https://www.conflictly.app/dashboard", domain: "conflictly.app", iconName: "bubble.left.and.bubble.right"),
+        BookmarkItem(title: "Tradesea", shortcut: "⌘4", urlString: "https://app.tradesea.ai/trade", domain: "tradesea.ai", iconName: "chart.xyaxis.line"),
+        BookmarkItem(title: "Finviz", shortcut: "⌘5", urlString: "https://finviz.com/", domain: "finviz.com", iconName: "waveform.path.ecg"),
+        BookmarkItem(title: "GitHub", shortcut: "⌘6", urlString: "https://github.com", domain: "github.com", iconName: "chevron.left.forwardslash.chevron.right")
+    ]
+    var bookmarks: [BookmarkItem] = []
+    
+    let startPageURL: URL = {
+        if let bundleURL = Bundle.main.url(forResource: "startpage", withExtension: "html") {
+            return bundleURL
+        }
+        let path = "/Users/nata/Company/Browser/startpage.html"
+        return URL(fileURLWithPath: path)
+    }()
+    
+    let settingsPageURL: URL = {
+        if let bundleURL = Bundle.main.url(forResource: "settings", withExtension: "html") {
+            return bundleURL
+        }
+        let path = "/Users/nata/Company/Browser/settings.html"
+        return URL(fileURLWithPath: path)
+    }()
+    
+    func isSettingsURL(_ url: URL?) -> Bool {
+        guard let url = url else { return false }
+        let str = url.absoluteString.lowercased()
+        if str.hasPrefix("onyx://settings") ||
+           str.hasPrefix("about:settings") ||
+           str.hasPrefix("chrome://settings") {
+            return true
+        }
+        if url.isFileURL && url.lastPathComponent.lowercased() == "settings.html" {
+            return true
+        }
+        return false
+    }
+    
+    convenience init() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 1280, height: 850),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.minSize = NSSize(width: 900, height: 650)
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = NSColor(red: 22/255.0, green: 22/255.0, blue: 25/255.0, alpha: 1.0)
+        window.isMovableByWindowBackground = false
+        window.isReleasedWhenClosed = false
+        
+        self.init(window: window)
+        
+        loadSavedProfiles()
+        loadSavedBookmarks()
+        loadBrowsingHistory()
+        purgeSearchBotAnomalyCookies()
+        setupAdBlocker()
+        setupOnyxResearchBridge()
+        setupUI()
+        setupShortcuts()
+        
+        // Open initial tab based on user preference
+        let startupMode = UserDefaults.standard.string(forKey: "OnyxStartupBehavior") ?? "startpage"
+        if startupMode == "blank" {
+            createNewTab(url: URL(string: "about:blank")!)
+        } else {
+            createNewTab(url: startPageURL)
+        }
+    }
+    
+    // KVO for progress, title, url
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        guard let webView = object as? WKWebView else { return }
+        guard let matchingTab = tabs.first(where: { $0.webView == webView }) else { return }
+        
+        if keyPath == "estimatedProgress" {
+            matchingTab.estimatedProgress = webView.estimatedProgress
+            if matchingTab.id == activeTab.id {
+                let progress = webView.estimatedProgress
+                if let parentBar = progressBar.superview {
+                    let targetWidth = CGFloat(progress) * parentBar.bounds.width
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = 0.18
+                        ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
+                        self.progressConstraint.animator().constant = targetWidth
+                    }
+                    if progress >= 1.0 {
+                        NSAnimationContext.runAnimationGroup({ ctx in
+                            ctx.duration = 0.25
+                            self.progressBar.animator().alphaValue = 0.0
+                        }, completionHandler: {
+                            self.progressBar.isHidden = true
+                            self.progressBar.alphaValue = 1.0
+                            self.progressConstraint.constant = 0
+                        })
+                    } else {
+                        self.progressBar.isHidden = false
+                        self.progressBar.alphaValue = 1.0
+                    }
+                }
+            }
+        } else if keyPath == "title" {
+            if isSettingsURL(matchingTab.url) {
+                matchingTab.title = "Settings"
+                if matchingTab.id == activeTab.id {
+                    self.window?.title = "Settings — Onyx"
+                }
+                if matchingTab.favicon == nil {
+                    if let img = NSImage(systemSymbolName: "gearshape.fill", accessibilityDescription: "Settings") {
+                        let cfg = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
+                        matchingTab.favicon = img.withSymbolConfiguration(cfg)
+                    }
+                }
+                renderTabs()
+            } else if isResearchURL(matchingTab.url) {
+                let q = extractResearchQuery(from: matchingTab.url)
+                let cleanTitle = q.isEmpty ? "✦ Onyx Research" : "✦ \(q)"
+                matchingTab.title = cleanTitle
+                if matchingTab.id == activeTab.id {
+                    self.window?.title = cleanTitle
+                }
+                renderTabs()
+            } else if isSearchURL(matchingTab.url) {
+                let q = extractSearchQuery(from: matchingTab.url)
+                var rawTitle = webView.title ?? ""
+                rawTitle = rawTitle.replacingOccurrences(of: " at DuckDuckGo", with: "")
+                                   .replacingOccurrences(of: " - DuckDuckGo", with: "")
+                                   .replacingOccurrences(of: "DuckDuckGo — ", with: "")
+                                   .replacingOccurrences(of: "DuckDuckGo", with: "")
+                                   .trimmingCharacters(in: .whitespacesAndNewlines)
+                let displayTitle: String
+                if !q.isEmpty {
+                    displayTitle = "✦ \(q) — Search"
+                } else if !rawTitle.isEmpty {
+                    displayTitle = "✦ \(rawTitle) — Search"
+                } else {
+                    displayTitle = "✦ Onyx Search"
+                }
+                matchingTab.title = displayTitle
+                if matchingTab.id == activeTab.id {
+                    self.window?.title = displayTitle
+                }
+                renderTabs()
+            } else if let title = webView.title, !title.isEmpty {
+                var cleanTitle = title
+                if cleanTitle.contains("DuckDuckGo") {
+                    cleanTitle = cleanTitle.replacingOccurrences(of: " at DuckDuckGo", with: "")
+                                           .replacingOccurrences(of: " - DuckDuckGo", with: "")
+                                           .replacingOccurrences(of: "DuckDuckGo — ", with: "")
+                                           .replacingOccurrences(of: "DuckDuckGo", with: "")
+                                           .trimmingCharacters(in: .whitespacesAndNewlines)
+                    cleanTitle = "✦ \(cleanTitle) — Search"
+                }
+                matchingTab.title = cleanTitle
+                if matchingTab.id == activeTab.id {
+                    self.window?.title = cleanTitle
+                }
+                renderTabs()
+            }
+        } else if keyPath == "URL" {
+            if let url = webView.url {
+                let oldHost = matchingTab.url.host
+                matchingTab.url = url
+                if isSettingsURL(url) {
+                    matchingTab.title = "Settings"
+                    if let img = NSImage(systemSymbolName: "gearshape.fill", accessibilityDescription: "Settings") {
+                        let cfg = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
+                        matchingTab.favicon = img.withSymbolConfiguration(cfg)
+                    }
+                }
+                if matchingTab.id == activeTab.id {
+                    updateSearchField(url: url)
+                    updateSearchFavicon(for: url)
+                    backButton.isEnabled = webView.canGoBack
+                    forwardButton.isEnabled = webView.canGoForward
+                    updateActiveBookmarkHighlight()
+                }
+                if let newHost = url.host, !url.isFileURL {
+                    if let cached = FaviconManager.shared.cachedFavicon(for: newHost) {
+                        updateTabFavicon(for: matchingTab, favicon: cached)
+                    } else if oldHost != newHost {
+                        matchingTab.favicon = nil
+                        for subview in tabStack.arrangedSubviews {
+                            if let tabItem = subview as? TabItemView, tabItem.tab.id == matchingTab.id {
+                                tabItem.updateFavicon(nil)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
