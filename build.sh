@@ -79,8 +79,17 @@ cat <<EOF > "$CONTENTS/Info.plist"
 </plist>
 EOF
 
-echo "==> Step 4: Ad-hoc code signing $APP_NAME.app..."
-codesign --force --deep -s - "$APP_DIR"
+# A stable signing identity keeps the app's designated requirement constant across rebuilds,
+# so the Keychain (password vault) does not re-prompt after every build. Override with
+# ONYX_SIGN_IDENTITY; falls back to ad-hoc signing when no Apple Development identity exists.
+SIGN_IDENTITY="${ONYX_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | awk '/Apple Development/ {print $2; exit}')}"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+if [ "$SIGN_IDENTITY" = "-" ]; then
+    echo "==> Step 4: Ad-hoc code signing $APP_NAME.app (Keychain will re-prompt after each rebuild)..."
+else
+    echo "==> Step 4: Code signing $APP_NAME.app with identity $SIGN_IDENTITY..."
+fi
+codesign --force --deep -s "$SIGN_IDENTITY" "$APP_DIR"
 
 echo "==> Step 5: Syncing to ~/Applications (Spotlight & Dock accessible)..."
 mkdir -p "$HOME/Applications"
