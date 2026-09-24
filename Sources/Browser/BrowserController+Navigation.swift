@@ -63,9 +63,8 @@ extension BrowserController {
                 searchFaviconView.image = nil
                 searchFaviconView.isHidden = true
             } else {
-                let isResearch = isResearchURL(url)
                 searchFaviconView.isHidden = true
-                searchThinkingOrb.startAnimation(mode: isResearch ? .orbits : .orbits)
+                searchThinkingOrb.startAnimation(mode: .orbits)
             }
             updateActiveBookmarkHighlight()
         }

@@ -44,6 +44,11 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     var profilePopover: NSPopover?
     var edgeGlowView: DirectionalEdgeGlowView!
     var adBlockRuleList: WKContentRuleList?
+    var sessionSaveWorkItem: DispatchWorkItem?
+    /// The sheet currently shown for a page's alert()/confirm()/prompt(), and the page that opened it,
+    /// so Cmd+W can still close a tab stuck in a dialog loop.
+    weak var activeJSDialogSheet: NSWindow?
+    weak var activeJSDialogWebView: WKWebView?
     
     // Tab Management (Resilient Index Guarding)
     var tabs: [BrowserTab] = []
@@ -190,6 +195,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                 self.refreshPasswordManagerList(query: self.passwordSearchField?.stringValue ?? "")
             }
         }
+        
+        snapshotLastSessionAtLaunch()
         
         // Open initial tab(s) based on user preference
         let startupMode = UserDefaults.standard.string(forKey: "OnyxStartupBehavior") ?? "startpage"

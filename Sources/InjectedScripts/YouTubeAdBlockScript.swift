@@ -4,6 +4,9 @@ import UniformTypeIdentifiers
 
 let youTubeAdBlockerSource = #"""
     (function() {
+        // Installed in every frame so embedded players are covered, but it must do
+        // nothing (no timers, no fetch/JSON.parse patches) anywhere except YouTube.
+        if (!/(^|\.)(youtube\.com|youtube-nocookie\.com)$/.test(location.hostname)) return;
         if (window.__onyx_yt_adblock_installed) return;
         window.__onyx_yt_adblock_installed = true;
 

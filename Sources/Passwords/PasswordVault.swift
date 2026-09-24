@@ -44,15 +44,15 @@ struct OnyxPasswordEntry: Codable, Identifiable {
         return cleaned.lowercased()
     }
     
+    /// Strict: the page host must be the saved domain or a subdomain of it (a leading `www.` is
+    /// ignored on both sides). No substring or reverse matching, so `tradesea.ai-secure.net`
+    /// never matches a saved `tradesea.ai` login and `x.com` never matches `netflix.com`.
     func matches(host: String) -> Bool {
-        let h = host.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        let d = domain.lowercased()
-        guard !h.isEmpty && !d.isEmpty else { return false }
-        if h == d { return true }
-        if h.hasSuffix("." + d) || d.hasSuffix("." + h) { return true }
-        let cleanH = h.replacingOccurrences(of: "www.", with: "")
-        let cleanD = d.replacingOccurrences(of: "www.", with: "")
-        return cleanH == cleanD || cleanH.contains(cleanD) || cleanD.contains(cleanH)
+        func stripWWW(_ s: String) -> String {
+            let t = s.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.hasPrefix("www.") ? String(t.dropFirst(4)) : t
+        }
+        return URLClassifier.host(stripWWW(host), isOrIsSubdomainOf: stripWWW(domain))
     }
     
     func matchesQuery(_ query: String) -> Bool {
@@ -327,7 +327,9 @@ class OnyxPasswordStore {
     }
     
     // The whole vault is one Keychain generic-password item holding the JSON-encoded entries.
-    private let keychainService = "com.company.onyx.vault"
+    // ONYX_VAULT_SERVICE lets throwaway test builds use their own item instead of prompting
+    // for access to the real vault.
+    private let keychainService = ProcessInfo.processInfo.environment["ONYX_VAULT_SERVICE"] ?? "com.company.onyx.vault"
     private let keychainAccount = "passwords"
     
     private var entries: [OnyxPasswordEntry] = []

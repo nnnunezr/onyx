@@ -90,7 +90,7 @@ extension BrowserController {
         case "setStartup":
             if let mode = dict["mode"] as? String, ["startpage", "restore", "blank"].contains(mode) {
                 defaults.set(mode, forKey: "OnyxStartupBehavior")
-                if mode == "restore" { saveSession() }
+                saveSession()
             }
             
         case "setShowBookmarksBar":

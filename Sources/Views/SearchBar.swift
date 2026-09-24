@@ -25,11 +25,13 @@ class CustomSearchBar: NSTextField {
     var onFocusChanged: ((Bool) -> Void)?
     
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.contains(.command) {
-            if event.charactersIgnoringModifiers == "a" {
-                self.currentEditor()?.selectAll(nil)
-                return true
-            }
+        // NSWindow offers key equivalents to every view, not just the focused one: only claim
+        // Cmd+A while this field is being edited, or a focused web page never gets Select All.
+        if let editor = currentEditor(),
+           event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers == "a" {
+            editor.selectAll(nil)
+            return true
         }
         return super.performKeyEquivalent(with: event)
     }

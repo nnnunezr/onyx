@@ -30,14 +30,43 @@ extension BrowserController {
         return SavedWorkspace(urls: urls, activeIndex: mappedActive)
     }
 
-    /// Persists every workspace's tabs. Cheap enough to call after navigations and tab changes.
+    private static let lastSessionDefaultsKey = "OnyxLastSession"
+
+    private func loadSavedSession(forKey key: String = BrowserController.sessionDefaultsKey) -> [String: SavedWorkspace] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let all = try? JSONDecoder().decode([String: SavedWorkspace].self, from: data) else { return [:] }
+        return all
+    }
+
+    /// Called once at launch, before anything can save: keeps a copy of the previous run's
+    /// session so a bad first save can never destroy it.
+    func snapshotLastSessionAtLaunch() {
+        if let data = UserDefaults.standard.data(forKey: BrowserController.sessionDefaultsKey) {
+            UserDefaults.standard.set(data, forKey: BrowserController.lastSessionDefaultsKey)
+        }
+    }
+
+    /// Coalesces the many save triggers (every didFinish, every tab close) into one write.
+    func scheduleSessionSave() {
+        sessionSaveWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in self?.saveSession() }
+        sessionSaveWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: item)
+    }
+
+    /// Persists every workspace's tabs, always (the startup mode only decides whether to restore).
+    /// Workspaces not opened during this run keep their previously saved tabs.
     func saveSession() {
-        guard UserDefaults.standard.string(forKey: "OnyxStartupBehavior") == "restore" else { return }
-        var all: [String: SavedWorkspace] = [:]
+        sessionSaveWorkItem?.cancel()
+        sessionSaveWorkItem = nil
+        var all = loadSavedSession()
         for (profileId, tabList) in profileTabs where profileId != activeProfile.id {
             all[profileId] = snapshot(tabList, activeIndex: profileActiveIndices[profileId] ?? 0)
         }
         all[activeProfile.id] = snapshot(tabs, activeIndex: activeTabIndex)
+        // Drop entries for workspaces that no longer exist.
+        let liveIds = Set(profiles.map { $0.id })
+        all = all.filter { liveIds.contains($0.key) }
         if let data = try? JSONEncoder().encode(all) {
             UserDefaults.standard.set(data, forKey: BrowserController.sessionDefaultsKey)
         }
@@ -48,9 +77,7 @@ extension BrowserController {
     @discardableResult
     func restoreSessionTabs(for profile: BrowserProfile) -> Bool {
         guard UserDefaults.standard.string(forKey: "OnyxStartupBehavior") == "restore",
-              let data = UserDefaults.standard.data(forKey: BrowserController.sessionDefaultsKey),
-              let all = try? JSONDecoder().decode([String: SavedWorkspace].self, from: data),
-              let saved = all[profile.id], !saved.urls.isEmpty else { return false }
+              let saved = loadSavedSession()[profile.id], !saved.urls.isEmpty else { return false }
 
         for str in saved.urls {
             createNewTab(url: resolveQuery(str), switchTo: false)

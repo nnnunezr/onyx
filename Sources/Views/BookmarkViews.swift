@@ -140,7 +140,7 @@ class BookmarkButton: NSControl {
         self.layer?.masksToBounds = true
         self.target = target
         self.action = action
-        self.toolTip = "\(bookmark.title) (\(bookmark.shortcut))\n\(bookmark.urlString)\nClick ✕ or press Delete to remove"
+        self.toolTip = "\(bookmark.title) (\(bookmark.shortcut))\n\(bookmark.urlString)\nClick ✕ to remove"
         
         let stack = NSStackView()
         stack.translatesAutoresizingMaskIntoConstraints = false

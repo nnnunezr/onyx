@@ -3314,6 +3314,8 @@
 
   // Keyboard shortcuts (Search, Workspaces, News)
   window.addEventListener('keydown', (e) => {
+    // Leave Cmd/Ctrl/Alt combos (e.g. Cmd+Shift+S) to the browser's menus.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (document.activeElement !== searchInput) {
       if (e.key === '/' || e.key === 's') {
         e.preventDefault();

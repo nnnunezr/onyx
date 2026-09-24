@@ -48,7 +48,9 @@ extension BrowserController {
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.websiteDataStore = websiteDataStore(for: profile)
         config.applicationNameForUserAgent = "Version/18.3 Safari/605.1.15"
-        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        // Private preference (Web Inspector context menu). KVC on a key WebKit no longer
+        // implements throws and would crash at launch, so check the setter first.
+        PrivateWebKit.set(config.preferences, key: "developerExtrasEnabled", setter: "_setDeveloperExtrasEnabled:", value: true)
         // File-URL privileges (allowFileAccessFromFileURLs / allowUniversalAccessFromFileURLs) are
         // deliberately left OFF: with them on, any local HTML file could read other local files.
         // Bundled pages get subresource access via loadFileURL(_:allowingReadAccessTo:) instead.
@@ -56,7 +58,6 @@ extension BrowserController {
         if let ruleList = adBlockRuleList, isAdBlockEnabled {
             config.userContentController.add(ruleList)
         }
-        installSearchThemeStyleSheets(for: config)
         installUserScripts(for: config)
         
         for name in BrowserController.scriptMessageNames {
@@ -100,6 +101,9 @@ extension BrowserController {
         // 4. Restore tabs for this profile or create a fresh start page tab
         if let savedTabs = profileTabs[profile.id], !savedTabs.isEmpty {
             tabs = savedTabs
+            // `tabs` is now the source of truth for this workspace; a stale copy here would keep
+            // tabs closed later in this visit alive (and possibly playing audio).
+            profileTabs[profile.id] = nil
             let savedIndex = profileActiveIndices[profile.id] ?? 0
             activeTabIndex = min(savedIndex, tabs.count - 1)
         } else {

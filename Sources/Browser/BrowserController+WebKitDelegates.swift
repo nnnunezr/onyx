@@ -17,15 +17,13 @@ extension BrowserController {
                 searchFaviconView.image = nil
                 searchFaviconView.isHidden = true
             } else {
-                let isResearch = isResearchURL(targetURL)
                 searchFaviconView.isHidden = true
-                searchThinkingOrb.startAnimation(mode: isResearch ? .orbits : .orbits)
+                searchThinkingOrb.startAnimation(mode: .orbits)
             }
         }
     }
     
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        injectYouTubeAdBlocker(into: webView)
         if let matchingTab = tabs.first(where: { $0.webView == webView }),
            let host = (webView.url ?? matchingTab.url).host, !(webView.url ?? matchingTab.url).isFileURL {
             if let cached = FaviconManager.shared.cachedFavicon(for: host) {
@@ -40,7 +38,6 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        injectYouTubeAdBlocker(into: webView)
         if let matchingTab = tabs.first(where: { $0.webView == webView }) {
             fetchFavicon(for: matchingTab)
         }
@@ -56,7 +53,7 @@ extension BrowserController {
             webView.evaluateJavaScript(engineJS, completionHandler: nil)
             webView.evaluateJavaScript(startPageNewsScript(), completionHandler: nil)
         }
-        saveSession()
+        scheduleSessionSave()
         
         if let url = webView.url, isSettingsURL(url) {
             sendSettingsPayload(to: webView)
@@ -64,22 +61,28 @@ extension BrowserController {
         
         if isResearchURL(webView.url) {
             injectOnyxResearchScript(into: webView)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self, weak webView] in
+                guard let webView = webView else { return }
                 self?.injectOnyxResearchScript(into: webView)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self, weak webView] in
+                guard let webView = webView else { return }
                 self?.injectOnyxResearchScript(into: webView)
             }
             if webView == activeWebView {
-                searchFaviconView.isHidden = true
-                searchThinkingOrb.startAnimation(mode: .globe)
+                // Loaded: stop the orb (it used to start here and spin at 60 Hz indefinitely).
+                searchThinkingOrb.stopAnimation()
+                searchFaviconView.isHidden = false
+                updateSearchFavicon(for: webView.url ?? activeTab.url)
             }
         } else if isSearchURL(webView.url) {
             injectOnyxSearchScript(into: webView)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak webView] in
+                guard let webView = webView else { return }
                 self?.injectOnyxSearchScript(into: webView)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self, weak webView] in
+                guard let webView = webView else { return }
                 self?.injectOnyxSearchScript(into: webView)
             }
             // Auto-detect and disable bot verification for a seamless private search experience
@@ -134,12 +137,11 @@ extension BrowserController {
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         let nsErr = error as NSError
-        if nsErr.domain == "WebKitErrorDomain" && (nsErr.code == 102 || nsErr.code == 101) {
-            return
-        }
-        if nsErr.domain == NSURLErrorDomain && nsErr.code == NSURLErrorCancelled {
-            return
-        }
+        let isCancellation = (nsErr.domain == "WebKitErrorDomain" && (nsErr.code == 102 || nsErr.code == 101)) ||
+                             (nsErr.domain == NSURLErrorDomain && nsErr.code == NSURLErrorCancelled)
+        // Stop, a download hand-off (102) or a superseded load still has to reset the loading UI;
+        // only skip it when a newer navigation is already running in this view.
+        if isCancellation && webView.isLoading { return }
         if webView == activeWebView {
             progressBar.isHidden = true
             searchThinkingOrb.stopAnimation()
@@ -153,12 +155,11 @@ extension BrowserController {
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         let nsErr = error as NSError
-        if nsErr.domain == "WebKitErrorDomain" && (nsErr.code == 102 || nsErr.code == 101) {
-            return
-        }
-        if nsErr.domain == NSURLErrorDomain && nsErr.code == NSURLErrorCancelled {
-            return
-        }
+        let isCancellation = (nsErr.domain == "WebKitErrorDomain" && (nsErr.code == 102 || nsErr.code == 101)) ||
+                             (nsErr.domain == NSURLErrorDomain && nsErr.code == NSURLErrorCancelled)
+        // Stop, a download hand-off (102) or a superseded load still has to reset the loading UI;
+        // only skip it when a newer navigation is already running in this view.
+        if isCancellation && webView.isLoading { return }
         if webView == activeWebView {
             progressBar.isHidden = true
             searchThinkingOrb.stopAnimation()
@@ -300,6 +301,51 @@ extension BrowserController {
         registerDownload(download: download, sourceURL: navigationResponse.response.url)
     }
     
+    // MARK: - WebContent Process Crash Recovery
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        let allTabs = tabs + profileTabs.values.flatMap { $0 }
+        guard let tab = allTabs.first(where: { $0.webView == webView }) else { return }
+        
+        let now = Date()
+        tab.recentCrashes = tab.recentCrashes.filter { now.timeIntervalSince($0) < 60 } + [now]
+        let isCrashLoop = tab.recentCrashes.count >= 2
+        
+        guard webView == activeWebView else {
+            // Background tab: reload lazily when it is next shown.
+            tab.needsReload = true
+            return
+        }
+        
+        progressBar.isHidden = true
+        searchThinkingOrb.stopAnimation()
+        searchFaviconView.isHidden = false
+        updateSearchFavicon(for: webView.url ?? tab.url)
+        if let img = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload") {
+            reloadButton.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+        }
+        
+        if isCrashLoop {
+            // Don't loop: let the user decide when to try again. Move focus off the dead view:
+            // a WKWebView without a process swallows key equivalents, so ⌘R would do nothing.
+            tab.needsReload = false
+            window?.makeFirstResponder(searchField)
+            showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "PAGE CRASHED AGAIN", message: "Press ⌘R to try reloading \(tab.url.host ?? "this page")")
+        } else {
+            reloadAfterCrash(tab)
+            showVaultToastHUD(icon: "arrow.clockwise", title: "PAGE RELOADED", message: "\(tab.url.host ?? "This page") stopped responding and was reloaded")
+        }
+    }
+    
+    func reloadAfterCrash(_ tab: BrowserTab) {
+        tab.needsReload = false
+        // reload() relaunches the process and reloads the current back/forward item (keeping history
+        // and scroll) even though webView.url is nil after a crash. It returns nil only when there
+        // is no current item, in which case start a fresh load.
+        if tab.webView.reload() == nil {
+            loadTabURL(tab: tab, url: tab.url)
+        }
+    }
+    
     // MARK: - WKUIDelegate (New Windows / Popups)
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         // WebKit requires the returned view to use exactly this configuration (same process pool,
@@ -356,7 +402,11 @@ extension BrowserController {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         if let window = self.window {
-            alert.beginSheetModal(for: window) { _ in completionHandler() }
+            trackJSDialog(alert, from: webView)
+            alert.beginSheetModal(for: window) { [weak self] _ in
+                self?.activeJSDialogSheet = nil
+                completionHandler()
+            }
         } else {
             alert.runModal()
             completionHandler()
@@ -372,7 +422,9 @@ extension BrowserController {
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Cancel")
         if let window = self.window {
-            alert.beginSheetModal(for: window) { response in
+            trackJSDialog(alert, from: webView)
+            alert.beginSheetModal(for: window) { [weak self] response in
+                self?.activeJSDialogSheet = nil
                 completionHandler(response == .alertFirstButtonReturn)
             }
         } else {
@@ -395,7 +447,9 @@ extension BrowserController {
         alert.accessoryView = inputField
         
         if let window = self.window {
-            alert.beginSheetModal(for: window) { response in
+            trackJSDialog(alert, from: webView)
+            alert.beginSheetModal(for: window) { [weak self] response in
+                self?.activeJSDialogSheet = nil
                 if response == .alertFirstButtonReturn {
                     completionHandler(inputField.stringValue)
                 } else {
@@ -410,6 +464,11 @@ extension BrowserController {
                 completionHandler(nil)
             }
         }
+    }
+    
+    private func trackJSDialog(_ alert: NSAlert, from webView: WKWebView) {
+        activeJSDialogSheet = alert.window
+        activeJSDialogWebView = webView
     }
     
     func controlTextDidEndEditing(_ obj: Notification) {

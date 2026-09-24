@@ -4,12 +4,47 @@ import UniformTypeIdentifiers
 
 extension BrowserController {
     // MARK: - Menu Bar Actions
+    /// Tab-changing menu actions must not act on the tab under an open sheet
+    /// (e.g. Cmd+W while the Edit Bookmark sheet is up).
+    var isShowingSheet: Bool {
+        return window?.attachedSheet != nil
+    }
+    
     @objc func menuNewTab() {
+        guard !isShowingSheet else { return }
         createNewTab(url: startPageURL)
     }
     
     @objc func menuCloseTab() {
+        if let win = window, let sheet = win.attachedSheet {
+            // Onyx's own sheets (edit bookmark, password editor) block Cmd+W. A page's
+            // alert()/confirm()/prompt() sheet does not: cancel it and close the page, which is
+            // the only keyboard way out of an alert loop.
+            guard sheet === activeJSDialogSheet else { return }
+            let dialogWebView = activeJSDialogWebView
+            win.endSheet(sheet, returnCode: .alertSecondButtonReturn)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if let wv = dialogWebView, let tab = self.tabs.first(where: { $0.webView == wv }) {
+                    self.closeTab(tab: tab)
+                } else {
+                    self.closeTab(at: self.activeTabIndex)
+                }
+            }
+            return
+        }
         closeTab(at: activeTabIndex)
+    }
+    
+    @objc func menuFocusAddressBar() {
+        guard !isShowingSheet else { return }
+        searchField.selectText(nil)
+        window?.makeFirstResponder(searchField)
+    }
+    
+    @objc func menuOpenBookmarkSlot(_ sender: NSMenuItem) {
+        guard !isShowingSheet else { return }
+        openBookmarkIndex(sender.tag)
     }
     
     @objc func menuReload() {
@@ -65,12 +100,12 @@ extension BrowserController {
     }
     
     @objc func menuNextTab() {
-        guard !tabs.isEmpty else { return }
+        guard !tabs.isEmpty, !isShowingSheet else { return }
         selectTab(at: (activeTabIndex + 1) % tabs.count)
     }
     
     @objc func menuPrevTab() {
-        guard !tabs.isEmpty else { return }
+        guard !tabs.isEmpty, !isShowingSheet else { return }
         selectTab(at: (activeTabIndex - 1 + tabs.count) % tabs.count)
     }
     
@@ -102,5 +137,21 @@ extension BrowserController {
             alert.icon = icon
         }
         alert.runModal()
+    }
+}
+
+// MARK: - Bookmarks menu titles (⌘1-⌘9 follow the bookmarks bar order)
+extension BrowserController: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu.title == "Bookmarks" else { return }
+        for item in menu.items where item.action == #selector(menuOpenBookmarkSlot(_:)) {
+            if item.tag < bookmarks.count {
+                item.title = bookmarks[item.tag].title
+                item.isHidden = false
+            } else {
+                item.title = "Bookmark \(item.tag + 1)"
+                item.isHidden = true
+            }
+        }
     }
 }

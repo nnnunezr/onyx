@@ -42,7 +42,15 @@ class ThinkingOrbView: NSView {
         if displayTimer == nil {
             startTime = CACurrentMediaTime()
             displayTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-                self?.needsDisplay = true
+                guard let self = self else { return }
+                // Safety net: never animate longer than 15 s (a missed stop used to keep the
+                // main thread redrawing at 60 Hz forever). Freeze on the current frame.
+                if CACurrentMediaTime() - self.startTime > 15 {
+                    self.displayTimer?.invalidate()
+                    self.displayTimer = nil
+                    return
+                }
+                self.needsDisplay = true
             }
         }
     }

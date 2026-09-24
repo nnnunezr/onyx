@@ -3,58 +3,9 @@ import WebKit
 import UniformTypeIdentifiers
 
 extension BrowserController {
-    // Onyx Research Engine: Direct Comet-Style WebKit Integration
-    /// Registers the search/research theme as native user style sheets (private `_WKUserStyleSheet` API).
-    /// Call once per configuration; these survive removeAllUserScripts().
-    func installSearchThemeStyleSheets(for config: WKWebViewConfiguration) {
-        // Native WebKit UserStyleSheet registration (Zero-FOUC, applied at WebCore parser level before DOM evaluation)
-        if let userStyleSheetClass = NSClassFromString("_WKUserStyleSheet") as? NSObject.Type {
-            let sel = NSSelectorFromString("initWithSource:forWKWebView:forMainFrameOnly:includeMatchPatternStrings:excludeMatchPatternStrings:baseURL:level:contentWorld:")
-            typealias InitExt = @convention(c) (NSObject, Selector, NSString, WKWebView?, Bool, NSArray?, NSArray?, NSURL?, Int, WKContentWorld) -> NSObject
-            let selAdd = NSSelectorFromString("_addUserStyleSheet:")
-            typealias AddFunc = @convention(c) (WKUserContentController, Selector, NSObject) -> Void
-            
-            if userStyleSheetClass.instancesRespond(to: sel) && config.userContentController.responds(to: selAdd) {
-                let searchPatterns = [
-                    "*://*.google.com/*",
-                    "*://google.com/*",
-                    "*://*.google.ca/*",
-                    "*://*.google.co.uk/*",
-                    "*://*.google.de/*",
-                    "*://*.google.fr/*",
-                    "*://*.google.es/*",
-                    "*://*.google.it/*",
-                    "*://*.google.co.jp/*",
-                    "*://*.duckduckgo.com/*",
-                    "*://duckduckgo.com/*",
-                    "*://*.duck.com/*",
-                    "*://duck.com/*",
-                    "*://*.brave.com/*"
-                ] as NSArray
-                
-                let searchObj = userStyleSheetClass.init()
-                let impInitSearch = searchObj.method(for: sel)
-                let fnSearch = unsafeBitCast(impInitSearch, to: InitExt.self)
-                let searchSheet = fnSearch(searchObj, sel, onyxSearchCSS as NSString, nil, true, searchPatterns, nil, nil, 1, WKContentWorld.page)
-                
-                let impAdd = config.userContentController.method(for: selAdd)
-                let addFn = unsafeBitCast(impAdd, to: AddFunc.self)
-                addFn(config.userContentController, selAdd, searchSheet)
-                
-                let researchPatterns = [
-                    "*://duck.ai/*",
-                    "*://*.duck.ai/*"
-                ] as NSArray
-                let researchObj = userStyleSheetClass.init()
-                let impInitResearch = researchObj.method(for: sel)
-                let fnResearch = unsafeBitCast(impInitResearch, to: InitExt.self)
-                let researchSheet = fnResearch(researchObj, sel, onyxResearchCSS as NSString, nil, true, researchPatterns, nil, nil, 1, WKContentWorld.page)
-                addFn(config.userContentController, selAdd, researchSheet)
-            }
-        }
-
-    }
-    
+    // Onyx Research Engine: search/research pages are themed by the document-start user
+    // script below. (A private _WKUserStyleSheet registration used to apply the same 76 KB
+    // sheet to every *.google.com page, including Gmail and Docs; removed, see ROADMAP ARCH-19-V.)
     /// Document-start/end scripts that theme search & research pages. Repeatable.
     func installSearchThemeScripts(for config: WKWebViewConfiguration) {
         let escapedResearchCSS = onyxResearchCSS
@@ -69,12 +20,7 @@ extension BrowserController {
 
         let jsSourceStart = """
         (function() {
-            const host = window.location.hostname || '';
-            const href = window.location.href || '';
-            const isDuck = host.includes('duck.ai') || host.includes('duckduckgo.com') || host.includes('duck.com');
-            const isGoogle = host.includes('google.') && (href.includes('/search') || href.includes('q=') || href.includes('/imghp') || href.includes('tbm=') || href.includes('udm=') || host.startsWith('images.'));
-            const isBrave = host.includes('brave.com') && href.includes('/search');
-            const isSearch = isDuck || isGoogle || isBrave;
+            \(URLClassifier.javaScriptClassifier)
             if (!isSearch) return;
 
             try {
@@ -101,7 +47,6 @@ extension BrowserController {
             });
             try { bodyObs.observe(document.documentElement, { childList: true }); } catch(e) {}
 
-            const isChat = host.includes('duck.ai') || href.includes('ia=chat');
             const css = isChat ? `\(escapedResearchCSS)` : `\(escapedSearchCSS)`;
             const styleId = isChat ? 'onyx-research-theme' : 'onyx-search-theme';
 
@@ -160,14 +105,8 @@ extension BrowserController {
 
         let jsSource = """
         (function() {
-            const host = window.location.hostname || '';
-            const href = window.location.href || '';
-            const isDuck = host.includes('duck.ai') || host.includes('duckduckgo.com') || host.includes('duck.com');
-            const isGoogle = host.includes('google.') && (href.includes('/search') || href.includes('q=') || href.includes('/imghp') || href.includes('tbm=') || href.includes('udm=') || host.startsWith('images.'));
-            const isBrave = host.includes('brave.com') && href.includes('/search');
-            const isSearch = isDuck || isGoogle || isBrave;
+            \(URLClassifier.javaScriptClassifier)
             if (!isSearch) return;
-            const isChat = host.includes('duck.ai') || href.includes('ia=chat');
 
             try {
                 document.documentElement.style.colorScheme = 'dark';
@@ -811,21 +750,11 @@ extension BrowserController {
     }
     
     func isResearchURL(_ url: URL?) -> Bool {
-        guard let url = url else { return false }
-        let str = url.absoluteString.lowercased()
-        let host = url.host?.lowercased() ?? ""
-        return host.contains("duck.ai") || str.contains("ia=chat")
+        return URLClassifier.isResearch(url)
     }
     
     func isSearchURL(_ url: URL?) -> Bool {
-        guard let url = url else { return false }
-        if isResearchURL(url) { return false }
-        let host = url.host?.lowercased() ?? ""
-        return host.contains("duckduckgo.com") || host.contains("duck.com") ||
-               (host.contains("google.") && (url.path.contains("/search") || (url.query?.contains("q=") == true) || url.path.contains("/imghp") || host.hasPrefix("images.google."))) ||
-               (host.contains("brave.com") && url.path.contains("/search")) ||
-               (host.contains("kagi.com") && url.path.contains("/search")) ||
-               (host.contains("bing.com") && url.path.contains("/search"))
+        return URLClassifier.isSearch(url)
     }
     
     func extractResearchQuery(from url: URL?) -> String {

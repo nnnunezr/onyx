@@ -504,6 +504,10 @@ extension BrowserController {
                     closeSuggestionsPopover()
                     return true
                 }
+                // Second Escape: restore the current URL and return focus to the page.
+                updateSearchField(url: activeWebView.url ?? activeTab.url)
+                window?.makeFirstResponder(activeWebView)
+                return true
             } else if commandSelector == #selector(NSResponder.insertNewline(_:)) {
                 if suggestionsPopover?.isShown == true, let selected = suggestionsView?.selectedItem() {
                     closeSuggestionsPopover()
@@ -1042,6 +1046,23 @@ extension BrowserController {
     
     func autofillActiveTab(with entry: OnyxPasswordEntry) {
         let webView = activeWebView
+        
+        // Re-check at fill time: the page must be the entry's site (or a subdomain), and over HTTPS
+        // unless it is a loopback dev server or the login itself was saved on plain http.
+        let pageHost = URLClassifier.normalizedHost(webView.url)
+        guard entry.matches(host: pageHost) else {
+            let shownHost = pageHost.isEmpty ? "this page" : pageHost
+            showVaultToastHUD(icon: "exclamationmark.shield.fill", title: "AUTOFILL BLOCKED",
+                              message: "This login is for \(entry.domain), not \(shownHost)")
+            return
+        }
+        let pageScheme = webView.url?.scheme?.lowercased() ?? ""
+        let entryIsHTTP = entry.urlString.lowercased().hasPrefix("http://")
+        guard pageScheme == "https" || (pageScheme == "http" && (URLClassifier.isLoopback(pageHost) || entryIsHTTP)) else {
+            showVaultToastHUD(icon: "exclamationmark.shield.fill", title: "AUTOFILL BLOCKED",
+                              message: "Not autofilled over an insecure (http) connection")
+            return
+        }
         
         let js = """
         (function() {

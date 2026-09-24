@@ -27,7 +27,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let arg = CommandLine.arguments[1]
             // resolveQuery handles http(s), file://, onyx:// aliases, bare domains and search text.
             if !arg.hasPrefix("-"), let resolved = browserController?.resolveQuery(arg) {
-                browserController?.loadURL(resolved)
+                browserController?.openLaunchURL(resolved)
             }
         }
     }
@@ -101,6 +101,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         newTabItem.target = controller
         let openFileItem = NSMenuItem(title: "Open File...", action: #selector(BrowserController.openLocalFile), keyEquivalent: "o")
         openFileItem.target = controller
+        let openLocationItem = NSMenuItem(title: "Open Location...", action: #selector(BrowserController.menuFocusAddressBar), keyEquivalent: "l")
+        openLocationItem.target = controller
+        let searchItem = NSMenuItem(title: "Search...", action: #selector(BrowserController.menuFocusAddressBar), keyEquivalent: "k")
+        searchItem.target = controller
         let newLoginItem = NSMenuItem(title: "New Login...", action: #selector(BrowserController.openAddPasswordModal), keyEquivalent: "n")
         newLoginItem.keyEquivalentModifierMask = [.command, .option]
         newLoginItem.target = controller
@@ -113,6 +117,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let closeWindowItem = NSMenuItem(title: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "W")
         
         fileMenu.addItem(newTabItem)
+        fileMenu.addItem(openLocationItem)
+        fileMenu.addItem(searchItem)
         fileMenu.addItem(openFileItem)
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(newLoginItem)
@@ -155,6 +161,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         downloadsItem.target = controller
         let zoomInItem = NSMenuItem(title: "Zoom In", action: #selector(BrowserController.menuZoomIn), keyEquivalent: "+")
         zoomInItem.target = controller
+        // Cmd+= (no Shift) is what most people press for zoom in.
+        let zoomInEqualsItem = NSMenuItem(title: "Zoom In", action: #selector(BrowserController.menuZoomIn), keyEquivalent: "=")
+        zoomInEqualsItem.target = controller
+        zoomInEqualsItem.isHidden = true
+        zoomInEqualsItem.allowsKeyEquivalentWhenHidden = true
+        let downloadsAltItem = NSMenuItem(title: "Downloads", action: #selector(BrowserController.menuToggleDownloads), keyEquivalent: "l")
+        downloadsAltItem.keyEquivalentModifierMask = [.command, .option]
+        downloadsAltItem.target = controller
+        downloadsAltItem.isHidden = true
+        downloadsAltItem.allowsKeyEquivalentWhenHidden = true
         let zoomOutItem = NSMenuItem(title: "Zoom Out", action: #selector(BrowserController.menuZoomOut), keyEquivalent: "-")
         zoomOutItem.target = controller
         let zoomResetItem = NSMenuItem(title: "Actual Size", action: #selector(BrowserController.menuZoomReset), keyEquivalent: "0")
@@ -166,8 +182,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenu.addItem(NSMenuItem.separator())
         viewMenu.addItem(toggleBookmarksItem)
         viewMenu.addItem(downloadsItem)
+        viewMenu.addItem(downloadsAltItem)
         viewMenu.addItem(NSMenuItem.separator())
         viewMenu.addItem(zoomInItem)
+        viewMenu.addItem(zoomInEqualsItem)
         viewMenu.addItem(zoomOutItem)
         viewMenu.addItem(zoomResetItem)
         viewMenu.addItem(NSMenuItem.separator())
@@ -190,6 +208,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         historyMenu.addItem(homeItem)
         historyMenuItem.submenu = historyMenu
         mainMenu.addItem(historyMenuItem)
+        
+        // 5b. Bookmarks Menu (menu key equivalents let a focused page claim ⌘B/⌘D/⌘1-9 first)
+        let bookmarksMenuItem = NSMenuItem()
+        let bookmarksMenu = NSMenu(title: "Bookmarks")
+        bookmarksMenu.delegate = controller
+        let addBookmarkItem = NSMenuItem(title: "Add Bookmark...", action: #selector(BrowserController.menuAddBookmark), keyEquivalent: "d")
+        addBookmarkItem.target = controller
+        let manageBookmarksItem = NSMenuItem(title: "Manage Bookmarks...", action: #selector(BrowserController.menuOpenManager), keyEquivalent: "b")
+        manageBookmarksItem.target = controller
+        bookmarksMenu.addItem(addBookmarkItem)
+        bookmarksMenu.addItem(manageBookmarksItem)
+        bookmarksMenu.addItem(NSMenuItem.separator())
+        for slot in 0..<9 {
+            let item = NSMenuItem(title: "Bookmark \(slot + 1)", action: #selector(BrowserController.menuOpenBookmarkSlot(_:)), keyEquivalent: "\(slot + 1)")
+            item.tag = slot
+            item.target = controller
+            bookmarksMenu.addItem(item)
+        }
+        bookmarksMenuItem.submenu = bookmarksMenu
+        mainMenu.addItem(bookmarksMenuItem)
         
         // 6. Profiles Menu
         let profilesMenuItem = NSMenuItem()

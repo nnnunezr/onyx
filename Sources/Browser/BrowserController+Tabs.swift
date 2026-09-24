@@ -27,6 +27,17 @@ extension BrowserController {
         loadTabURL(tab: tab, url: url)
     }
     
+    /// Opens a URL handed to Onyx at launch. Loading it into the brand-new start page tab does
+    /// not work: WebKit drops a web load issued right after that tab's pending file load. So open
+    /// it in its own tab and discard the untouched start page.
+    func openLaunchURL(_ url: URL) {
+        let untouchedStartPage = tabs.count == 1 && isStartPageURL(tabs[0].url)
+        createNewTab(url: url, switchTo: true)
+        if untouchedStartPage {
+            closeTab(at: 0)
+        }
+    }
+    
     /// Wires delegates + KVO and appends the tab. Does not load anything or change selection.
     func attachTab(_ tab: BrowserTab) {
         tab.webView.navigationDelegate = self
@@ -40,6 +51,13 @@ extension BrowserController {
     
     func selectTab(at index: Int) {
         guard index >= 0 && index < tabs.count else { return }
+        
+        // If the outgoing page (or nothing) had focus, hand focus to the incoming page so the
+        // keyboard keeps working after a switch. Leave it alone while the omnibox is being edited.
+        let responder = window?.firstResponder
+        let pageHadFocus = responder === window || (responder as? NSView).map { view in
+            webContainerView.subviews.contains { $0 !== edgeGlowView && (view === $0 || view.isDescendant(of: $0)) }
+        } ?? true
         
         // Remove previous web view safely without triggering computed properties
         webContainerView.subviews.forEach { view in
@@ -64,8 +82,17 @@ extension BrowserController {
             currentTab.webView.bottomAnchor.constraint(equalTo: webContainerView.bottomAnchor)
         ])
         
+        if pageHadFocus {
+            window?.makeFirstResponder(currentTab.webView)
+        }
+        
         renderTabs()
         updateSearchField(url: currentTab.url)
+        window?.title = currentTab.title
+        
+        if currentTab.needsReload {
+            reloadAfterCrash(currentTab)
+        }
         
         if currentTab.webView.isLoading {
             let isSearch = isSearchURL(currentTab.url)
@@ -75,13 +102,9 @@ extension BrowserController {
                 searchFaviconView.image = nil
                 searchFaviconView.isHidden = true
             } else {
-                let isResearch = isResearchURL(currentTab.url)
                 searchFaviconView.isHidden = true
-                searchThinkingOrb.startAnimation(mode: isResearch ? .orbits : .orbits)
+                searchThinkingOrb.startAnimation(mode: .orbits)
             }
-        } else if isResearchURL(currentTab.url) {
-            searchFaviconView.isHidden = true
-            searchThinkingOrb.startAnimation(mode: .orbits)
         } else if isSearchURL(currentTab.url) {
             searchThinkingOrb.stopAnimation()
             searchThinkingOrb.isHidden = true
@@ -118,11 +141,12 @@ extension BrowserController {
         }
         closingTab.webView.navigationDelegate = nil
         closingTab.webView.uiDelegate = nil
+        closingTab.webView.pauseAllMediaPlayback(completionHandler: nil)
         closingTab.webView.stopLoading()
         closingTab.webView.removeFromSuperview()
         
         tabs.remove(at: index)
-        defer { saveSession() }
+        defer { scheduleSessionSave() }
         
         if tabs.isEmpty {
             activeTabIndex = 0

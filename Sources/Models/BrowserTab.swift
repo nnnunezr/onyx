@@ -12,6 +12,10 @@ class BrowserTab: NSObject {
     var estimatedProgress: Double = 0.0
     var isLoading: Bool = false
     var isObserved: Bool = false
+    /// Set when this tab's WebContent process died while the tab was in the background.
+    var needsReload: Bool = false
+    /// Recent WebContent crashes, used to stop auto-reloading a page that keeps crashing.
+    var recentCrashes: [Date] = []
     
     init(url: URL, configuration: WKWebViewConfiguration) {
         self.url = url
@@ -29,7 +33,7 @@ class BrowserTab: NSObject {
         if #available(macOS 12.0, *) {
             self.webView.underPageBackgroundColor = NSColor(red: 7/255.0, green: 7/255.0, blue: 9/255.0, alpha: 1.0)
         }
-        self.webView.setValue(false, forKey: "drawsBackground")
+        PrivateWebKit.set(self.webView, key: "drawsBackground", setter: "_setDrawsBackground:", value: false)
         
         super.init()
     }

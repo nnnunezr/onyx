@@ -45,12 +45,6 @@ extension BrowserController {
         config.userContentController.addUserScript(userScript)
     }
 
-    func injectYouTubeAdBlocker(into webView: WKWebView) {
-        guard isAdBlockEnabled, let url = webView.url, let host = url.host?.lowercased(),
-              host.contains("youtube.com") || host.contains("youtu.be") else { return }
-        webView.evaluateJavaScript(youTubeAdBlockerSource, completionHandler: nil)
-    }
-
     // High-speed native ad/tracker rule compilation with YouTube ad shield
     func setupAdBlocker() {
         let blockedDomains = [

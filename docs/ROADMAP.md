@@ -328,19 +328,19 @@ Rules for every coding session:
   - Set the startup mode to Restore in Settings now. With today's bug it brings back Personal only, which still beats nothing.
   - ARCH-17: freeze Android (decided above).
   - Commit `docs/ROADMAP.md`.
-- [ ] **Session 1 (about 1.5 h): keep your tabs, cut the waste.**
+- [x] **Session 1 (about 1.5 h): keep your tabs, cut the waste.** Done 2026-09-24.
   - ARCH-5a first (always save, merge unvisited workspaces, launch snapshot, 2 s debounce).
   - PERF-1: hostname guard, and remove the `evaluateJavaScript` re-injection.
   - ARCH-19-V: delete the private stylesheet call. ARCH-7: KVC guards.
   - Take the two 10-minute `ps` samples and compare them with Session 0.
-- [ ] **Session 2 (about 1.5 h): stability.**
+- [x] **Session 2 (about 1.5 h): stability.** Done 2026-09-24 (crash test with a live WebContent kill still to do by hand).
   - PERF-3 steps 1, 2 and 5.
   - PERF-4.
   - PERF-17-V, including the crash test with nothing live open.
-- [ ] **Session 3 (about 1.5 h): keyboard pass.**
+- [x] **Session 3 (about 1.5 h): keyboard pass.** Done 2026-09-24. Cmd+T/W/Shift+W/L/R/Q stay reserved in the key monitor so pages and crashed tabs cannot block them; everything else is a menu key equivalent.
   - FEAT-1 / ARCH-3 / ARCH-20-V / FEAT-19-V / DSGN-22-V together, including the `menuCloseTab` sheet guard.
   - Test Escape in GitHub, Canvas and Onyx's own sheets. Test Cmd+B in Canvas, Cmd+K on GitHub, Cmd+W with a sheet open, Cmd+Opt+L and Cmd+=.
-- [ ] **Session 4 (about 1.5 h): trust.**
+- [x] **Session 4 (about 1.5 h): trust.** Done 2026-09-24 (`Sources/Core/URLClassifier.swift`, `tests/run.sh`).
   - PRIV-MISS-1-V with the host-suffix helper and the explicit Google host list.
   - PRIV-3, then the `ithub.com` dummy-entry test.
 
