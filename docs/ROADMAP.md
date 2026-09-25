@@ -345,7 +345,7 @@ Rules for every coding session:
   - PRIV-3, then the `ithub.com` dummy-entry test.
 
 **Tier 1 (only when an item bites)**
-- [ ] **Session 5 (about 2 h): data safety.** ARCH-5 rest (Reopen Last Session: done 2026-09-25; minimal logging still open), ARCH-4 (export the defaults first), PRIV-1 toast.
+- [x] **Session 5 (about 2 h): data safety.** Done 2026-09-25: Reopen Last Session, `os.Logger` channels (`log stream --predicate 'subsystem == "com.company.onyx"'`), ARCH-4 safe loading (`Sources/Support/Persistence.swift`: unreadable data backed up to `~/Library/Application Support/Onyx/recovery/`, good items salvaged, tolerant model decoding), PRIV-1 vault-locked toast with cause, vault writes that fail no longer report success.
 - [ ] **Session 6 (about 2 h): failure states.** ARCH-21-V error page with the `showingErrorPage` flag, DSGN-18-V, DSGN-19-V (with DC-2), DSGN-23-V (verify it first).
 - [ ] **Session 7 (about 3 h):** FEAT-2 find in page.
 - [ ] **Session 8 (about 2 h): tabs and nav.** FEAT-3, FEAT-20-V, FEAT-21-V, FEAT-5.

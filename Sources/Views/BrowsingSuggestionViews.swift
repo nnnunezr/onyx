@@ -10,6 +10,21 @@ struct BrowsingHistoryItem: Codable, Equatable {
     var timestamp: Date
 }
 
+extension BrowsingHistoryItem {
+    private enum CodingKeys: String, CodingKey { case id, title, urlString, timestamp }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let url = try c.decode(String.self, forKey: .urlString)
+        self.init(
+            id: try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString,
+            title: try c.decodeIfPresent(String.self, forKey: .title) ?? url,
+            urlString: url,
+            timestamp: try c.decodeIfPresent(Date.self, forKey: .timestamp) ?? Date(timeIntervalSince1970: 0)
+        )
+    }
+}
+
 struct BrowsingSuggestionItem {
     enum SuggestionType {
         case search

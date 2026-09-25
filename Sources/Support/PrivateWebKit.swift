@@ -15,7 +15,7 @@ enum PrivateWebKit {
         let publicSetter = "set" + key.prefix(1).uppercased() + key.dropFirst() + ":"
         guard object.responds(to: NSSelectorFromString(setter)) ||
               object.responds(to: NSSelectorFromString(publicSetter)) else {
-            NSLog("Onyx: private WebKit key '%@' unavailable on this macOS; skipped", key)
+            OnyxLog.webkit.notice("private WebKit key \(key, privacy: .public) unavailable on this macOS; skipped")
             return
         }
         object.setValue(value, forKey: key)

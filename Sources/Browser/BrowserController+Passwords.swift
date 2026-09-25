@@ -459,10 +459,15 @@ extension BrowserController {
             self?.showPasswordEditorModal(entry: entry)
         }
         row.onDelete = { [weak self] entry in
-            self?.passwordStore.delete(id: entry.id)
-            self?.refreshPasswordManagerList(query: self?.passwordSearchField?.stringValue ?? "")
-            self?.updatePasswordsBadge(for: self?.activeWebView.url)
-            self?.showVaultToastHUD(icon: "trash", title: "LOGIN REMOVED", message: "Deleted \(entry.title) from vault")
+            guard let self = self else { return }
+            let persisted = self.passwordStore.delete(id: entry.id)
+            self.refreshPasswordManagerList(query: self.passwordSearchField?.stringValue ?? "")
+            self.updatePasswordsBadge(for: self.activeWebView.url)
+            if persisted {
+                self.showVaultToastHUD(icon: "trash", title: "LOGIN REMOVED", message: "Deleted \(entry.title) from vault")
+            } else {
+                self.showVaultNotSavedToast()
+            }
         }
     }
     
@@ -852,10 +857,14 @@ extension BrowserController {
             newEntry.notes = finalNotes
             newEntry.updatedAt = Date()
             
-            self.passwordStore.addOrUpdate(newEntry)
+            let persisted = self.passwordStore.addOrUpdate(newEntry)
             self.updatePasswordsBadge(for: self.activeWebView.url)
             self.refreshPasswordManagerList(query: self.passwordSearchField?.stringValue ?? "")
-            self.showVaultToastHUD(icon: "checkmark.shield.fill", title: "LOGIN SAVED", message: "Saved \(finalTitle) to vault")
+            if persisted {
+                self.showVaultToastHUD(icon: "checkmark.shield.fill", title: "LOGIN SAVED", message: "Saved \(finalTitle) to vault")
+            } else {
+                self.showVaultNotSavedToast()
+            }
             pw.endSheet(sw, returnCode: .OK)
         }
         objc_setAssociatedObject(saveBtn, "saveHandler", saveHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
@@ -986,7 +995,11 @@ extension BrowserController {
                 return
             }
             
-            let (imported, updated) = self.passwordStore.importEntries(result.entries)
+            let (imported, updated, persisted) = self.passwordStore.importEntries(result.entries)
+            guard persisted else {
+                self.showVaultNotSavedToast()
+                return
+            }
             self.showVaultToastHUD(
                 icon: "checkmark.shield.fill",
                 title: "IMPORT SUCCESSFUL",
@@ -1202,8 +1215,27 @@ extension BrowserController {
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
     
+    /// Shown instead of a success toast when the vault could not be loaded and refuses writes.
+    func showVaultNotSavedToast() {
+        showVaultToastHUD(icon: "lock.trianglebadge.exclamationmark", title: "NOT SAVED", message: "Vault is locked; relaunch Onyx to retry")
+    }
+    
+    /// Launch-time explanation of why the vault is locked.
+    func vaultLockedMessage() -> String {
+        switch passwordStore.loadFailure {
+        case .keychainError(let status)?:
+            return "Keychain access failed (\(status)); saving disabled"
+        case .unreadable?:
+            return "Vault data unreadable; left untouched, saving disabled"
+        case nil:
+            return "Saving passwords is disabled"
+        }
+    }
+    
     func handleSavePasswordPromptMessage(_ dict: [String: Any], from webView: WKWebView) {
         guard UserDefaults.standard.object(forKey: "OnyxOfferSavePasswords") as? Bool ?? true else { return }
+        // Don't offer to save into a vault that cannot persist anything.
+        guard passwordStore.canPersist else { return }
         let username = (dict["username"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let password = (dict["password"] as? String) ?? ""
         // Use the tab's real URL, never the page-supplied one: a page could otherwise
@@ -1237,9 +1269,14 @@ extension BrowserController {
                 username: username,
                 password: password
             )
-            self?.passwordStore.addOrUpdate(newEntry)
-            self?.updatePasswordsBadge(for: self?.activeWebView.url)
-            self?.showVaultToastHUD(icon: "checkmark.shield.fill", title: "LOGIN SAVED", message: "Saved credentials for \(domain)")
+            guard let self = self else { return }
+            let persisted = self.passwordStore.addOrUpdate(newEntry)
+            self.updatePasswordsBadge(for: self.activeWebView.url)
+            if persisted {
+                self.showVaultToastHUD(icon: "checkmark.shield.fill", title: "LOGIN SAVED", message: "Saved credentials for \(domain)")
+            } else {
+                self.showVaultNotSavedToast()
+            }
         }
         
         webContainerView.addSubview(hud)

@@ -336,6 +336,17 @@ class OnyxPasswordStore {
     /// False when the Keychain could not be read (e.g. access denied). Saving is then refused so
     /// an empty in-memory vault can never overwrite the real one.
     private(set) var isLoaded = false
+    private var loadFinished = false
+
+    enum LoadFailure {
+        case keychainError(OSStatus)
+        case unreadable
+    }
+    /// Why the vault could not be loaded; nil while loading or after a successful load.
+    private(set) var loadFailure: LoadFailure?
+
+    /// False once loading has failed: changes then live only in memory and are lost at quit.
+    var canPersist: Bool { return !loadFinished || isLoaded }
     
     /// Placeholder rows older builds seeded into every new vault.
     private static let legacySeedUsernames: Set<String> = ["developer@onyx.dev", "user@gmail.com", "trader_onyx"]
@@ -378,16 +389,20 @@ class OnyxPasswordStore {
         let stored: [OnyxPasswordEntry]
         switch result {
         case .failure(let error):
-            NSLog("Onyx: password vault unavailable (Keychain status %d)", error.status)
+            OnyxLog.vault.error("vault unavailable, Keychain status \(error.status, privacy: .public)")
             isLoaded = false
+            loadFinished = true
+            loadFailure = .keychainError(error.status)
             return
         case .success(nil):
             stored = []
         case .success(let data?):
             guard let decoded = try? JSONDecoder().decode([OnyxPasswordEntry].self, from: data) else {
                 // Never overwrite a vault we could not read.
-                NSLog("Onyx: password vault in Keychain is unreadable; leaving it untouched")
+                OnyxLog.vault.fault("vault item in Keychain is unreadable; leaving it untouched")
                 isLoaded = false
+                loadFinished = true
+                loadFailure = .unreadable
                 return
             }
             stored = decoded
@@ -399,6 +414,7 @@ class OnyxPasswordStore {
         }
         entries = OnyxPasswordStore.merge(stored, with: cleanLegacy + pendingLocal)
         isLoaded = true
+        loadFinished = true
         
         if !legacy.isEmpty || !pendingLocal.isEmpty {
             if save() { eraseLegacyPlaintext() }
@@ -421,13 +437,13 @@ class OnyxPasswordStore {
     @discardableResult
     func save() -> Bool {
         guard isLoaded else {
-            NSLog("Onyx: refusing to save password vault that failed to load")
+            OnyxLog.vault.error("refusing to save a vault that failed to load")
             return false
         }
         guard let data = try? JSONEncoder().encode(entries) else { return false }
         let status = writeKeychain(data)
         if status != errSecSuccess {
-            NSLog("Onyx: failed to save password vault (Keychain status %d)", status)
+            OnyxLog.vault.error("vault save failed, Keychain status \(status, privacy: .public)")
         }
         return status == errSecSuccess
     }
@@ -489,7 +505,14 @@ class OnyxPasswordStore {
         try? FileManager.default.removeItem(at: legacyFileURL)
     }
     
-    func addOrUpdate(_ entry: OnyxPasswordEntry) {
+    /// Writes now, or (while the initial load is still running) leaves it to finishLoad, which
+    /// merges in-memory changes and saves. Returns false when the change cannot be persisted.
+    private func persist() -> Bool {
+        return loadFinished ? save() : true
+    }
+
+    @discardableResult
+    func addOrUpdate(_ entry: OnyxPasswordEntry) -> Bool {
         if let idx = entries.firstIndex(where: { $0.id == entry.id }) {
             entries[idx] = entry
             entries[idx].updatedAt = Date()
@@ -502,15 +525,16 @@ class OnyxPasswordStore {
         } else {
             entries.insert(entry, at: 0)
         }
-        save()
+        return persist()
     }
     
-    func delete(id: UUID) {
+    @discardableResult
+    func delete(id: UUID) -> Bool {
         entries.removeAll(where: { $0.id == id })
-        save()
+        return persist()
     }
     
-    func importEntries(_ newEntries: [OnyxPasswordEntry]) -> (imported: Int, updated: Int) {
+    func importEntries(_ newEntries: [OnyxPasswordEntry]) -> (imported: Int, updated: Int, persisted: Bool) {
         var importedCount = 0
         var updatedCount = 0
         for entry in newEntries {
@@ -527,8 +551,8 @@ class OnyxPasswordStore {
                 importedCount += 1
             }
         }
-        save()
-        return (importedCount, updatedCount)
+        let persisted = persist()
+        return (importedCount, updatedCount, persisted)
     }
     
     func generateStrongPassword(length: Int = 16) -> String {

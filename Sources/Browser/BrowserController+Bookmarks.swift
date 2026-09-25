@@ -40,11 +40,16 @@ extension BrowserController {
     }
     
     func loadSavedBookmarks() {
-        if let data = UserDefaults.standard.data(forKey: "OnyxBookmarks"),
-           let saved = try? JSONDecoder().decode([BookmarkItem].self, from: data) {
-            self.bookmarks = saved
+        let result = Persistence.loadList(BookmarkItem.self, key: "OnyxBookmarks")
+        if let problem = result.problem {
+            // Raw data is already in Onyx/recovery. Show what survived (or the defaults); nothing is
+            // written back until the user edits bookmarks.
+            startupNotices.append(problem.userMessage)
+            bookmarks = result.items.isEmpty ? BrowserController.defaultBookmarks : result.items
+        } else if UserDefaults.standard.data(forKey: "OnyxBookmarks") == nil {
+            bookmarks = BrowserController.defaultBookmarks
         } else {
-            self.bookmarks = BrowserController.defaultBookmarks
+            bookmarks = result.items
         }
     }
     
@@ -55,13 +60,18 @@ extension BrowserController {
     }
     
     func loadBrowsingHistory() {
-        if let data = UserDefaults.standard.data(forKey: "OnyxBrowsingHistory"),
-           let saved = try? JSONDecoder().decode([BrowsingHistoryItem].self, from: data) {
-            self.browsingHistory = saved
+        let result = Persistence.loadList(BrowsingHistoryItem.self, key: "OnyxBrowsingHistory")
+        browsingHistory = result.items
+        if let problem = result.problem {
+            startupNotices.append(problem.userMessage)
+            // History autosaves on every page load. Only allow that to replace the unreadable value
+            // once its raw bytes are safely in Onyx/recovery.
+            historySavingBlocked = problem.backupURL == nil
         }
     }
     
     func saveBrowsingHistory() {
+        guard !historySavingBlocked else { return }
         if let data = try? JSONEncoder().encode(browsingHistory) {
             UserDefaults.standard.set(data, forKey: "OnyxBrowsingHistory")
         }

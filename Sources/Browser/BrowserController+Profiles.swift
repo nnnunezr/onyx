@@ -304,6 +304,7 @@ extension BrowserController {
         }
         
         profiles.removeAll(where: { $0.id == id })
+        removeSavedSession(forWorkspace: id)
         profileTabs.removeValue(forKey: id)
         profileActiveIndices.removeValue(forKey: id)
         profileConfigurations.removeValue(forKey: id)
@@ -317,12 +318,17 @@ extension BrowserController {
     }
     
     func loadSavedProfiles() {
-        if let data = UserDefaults.standard.data(forKey: "OnyxProfiles"),
-           let saved = try? JSONDecoder().decode([BrowserProfile].self, from: data), !saved.isEmpty {
-            self.profiles = saved
-            if let def = saved.first(where: { $0.id == "personal" }) ?? saved.first {
-                self.activeProfile = def
-            }
+        let result = Persistence.loadList(BrowserProfile.self, key: "OnyxProfiles")
+        if let problem = result.problem {
+            // Built-in workspaces stay available; the unreadable list is in Onyx/recovery and is only
+            // replaced when a workspace is added or deleted.
+            startupNotices.append(problem.userMessage)
+        }
+        let saved = result.items
+        guard !saved.isEmpty else { return }
+        profiles = saved
+        if let def = saved.first(where: { $0.id == "personal" }) ?? saved.first {
+            activeProfile = def
         }
     }
     

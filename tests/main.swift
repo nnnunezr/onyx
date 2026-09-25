@@ -33,5 +33,25 @@ check(URLClassifier.isLoopback("app.localhost"), "*.localhost loopback")
 check(URLClassifier.isLoopback("127.0.0.1"), "127.0.0.1 loopback")
 check(!URLClassifier.isLoopback("localhost.evil.com"), "localhost.evil.com not loopback")
 check(!URLClassifier.isLoopback("192.168.1.1"), "LAN is not loopback")
+// Safe loading (ARCH-4): unreadable stored lists are backed up, good items are salvaged
+let suite = "onyx.tests.\(ProcessInfo.processInfo.processIdentifier)"
+let d = UserDefaults(suiteName: suite)!
+d.set(Data("not json".utf8), forKey: "OnyxBookmarks")
+let broken = Persistence.loadList(BookmarkItem.self, key: "OnyxBookmarks", defaults: d)
+check(broken.problem != nil && broken.items.isEmpty, "garbage bookmarks flagged, nothing salvaged")
+check(broken.problem?.backupURL.map { FileManager.default.fileExists(atPath: $0.path) } == true, "garbage bookmarks backed up")
+check(d.data(forKey: "OnyxBookmarks") == Data("not json".utf8), "stored value not overwritten by load")
+if let url = broken.problem?.backupURL { try? FileManager.default.removeItem(at: url) }
+let mixed = #"[{"urlString":"https://github.com","title":"GitHub"},{"title":"no url"},{"id":"x","urlString":"https://a.com","extraFutureField":1}]"#
+d.set(Data(mixed.utf8), forKey: "OnyxBookmarks")
+let partial = Persistence.loadList(BookmarkItem.self, key: "OnyxBookmarks", defaults: d)
+check(partial.items.map { $0.urlString } == ["https://github.com", "https://a.com"], "bad element skipped, others kept")
+check(partial.problem?.recoveredCount == 2, "partial decode reported")
+if let url = partial.problem?.backupURL { try? FileManager.default.removeItem(at: url) }
+d.set(Data(#"[{"id":"p","name":"Personal"}]"#.utf8), forKey: "OnyxProfiles")
+let profilesOld = Persistence.loadList(BrowserProfile.self, key: "OnyxProfiles", defaults: d)
+check(profilesOld.problem == nil && profilesOld.items.first?.colorHex == "#FFFFFF", "missing profile fields get defaults")
+check(Persistence.loadList(BookmarkItem.self, key: "missingKey", defaults: d).problem == nil, "missing key is not a problem")
+d.removePersistentDomain(forName: suite)
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED")
 exit(fails == 0 ? 0 : 1)

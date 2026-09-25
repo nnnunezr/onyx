@@ -309,6 +309,7 @@ extension BrowserController {
         let now = Date()
         tab.recentCrashes = tab.recentCrashes.filter { now.timeIntervalSince($0) < 60 } + [now]
         let isCrashLoop = tab.recentCrashes.count >= 2
+        OnyxLog.crash.error("WebContent process terminated for \(tab.url.host ?? "?", privacy: .private) (active: \(webView == self.activeWebView, privacy: .public), crash loop: \(isCrashLoop, privacy: .public))")
         
         guard webView == activeWebView else {
             // Background tab: reload lazily when it is next shown.

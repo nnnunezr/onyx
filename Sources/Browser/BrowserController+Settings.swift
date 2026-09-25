@@ -187,7 +187,7 @@ extension BrowserController {
         // Privileged bridges: Onyx's bundled start page and settings page only.
         default:
             guard source.isInternal else {
-                NSLog("Onyx: blocked '%@' message from untrusted frame %@", message.name, source.url?.absoluteString ?? "nil")
+                OnyxLog.security.notice("blocked \(message.name, privacy: .public) from untrusted frame \(source.url?.absoluteString ?? "nil", privacy: .private)")
                 return
             }
             switch message.name {

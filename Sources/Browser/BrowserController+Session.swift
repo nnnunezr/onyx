@@ -32,18 +32,53 @@ extension BrowserController {
 
     private static let lastSessionDefaultsKey = "OnyxLastSession"
 
+    private static var sessionBackupWritten = false
+
     private func loadSavedSession(forKey key: String = BrowserController.sessionDefaultsKey) -> [String: SavedWorkspace] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let all = try? JSONDecoder().decode([String: SavedWorkspace].self, from: data) else { return [:] }
-        return all
+        guard let data = UserDefaults.standard.data(forKey: key) else { return [:] }
+        if let all = try? JSONDecoder().decode([String: SavedWorkspace].self, from: data) {
+            return all
+        }
+        // saveSession runs constantly and would replace this value: keep a copy first (once per run).
+        if !BrowserController.sessionBackupWritten {
+            BrowserController.sessionBackupWritten = true
+            Persistence.writeBackup(data, key: key)
+            OnyxLog.persistence.error("\(key, privacy: .public): unreadable session, backed up")
+        }
+        return [:]
     }
 
     /// Called once at launch, before anything can save: keeps a copy of the previous run's
     /// session so a bad first save can never destroy it.
     func snapshotLastSessionAtLaunch() {
-        if let data = UserDefaults.standard.data(forKey: BrowserController.sessionDefaultsKey) {
-            UserDefaults.standard.set(data, forKey: BrowserController.lastSessionDefaultsKey)
+        guard let data = UserDefaults.standard.data(forKey: BrowserController.sessionDefaultsKey) else { return }
+        if (try? JSONDecoder().decode([String: SavedWorkspace].self, from: data)) == nil {
+            // Unreadable: keep the raw bytes and tell the user, instead of silently starting empty.
+            BrowserController.sessionBackupWritten = true
+            let backup = Persistence.writeBackup(data, key: BrowserController.sessionDefaultsKey)
+            OnyxLog.persistence.error("OnyxSessionTabs unreadable at launch; backup \(backup?.path ?? "FAILED", privacy: .public)")
+            startupNotices.append(Persistence.Problem(key: BrowserController.sessionDefaultsKey, recoveredCount: 0, backupURL: backup).userMessage)
+            return
         }
+        UserDefaults.standard.set(data, forKey: BrowserController.lastSessionDefaultsKey)
+    }
+
+    /// Shows problems collected while loading stored data (bookmarks, history, workspaces).
+    func showStartupNotices() {
+        guard !startupNotices.isEmpty else { return }
+        let message = startupNotices.joined(separator: ". ")
+        startupNotices.removeAll()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "SAVED DATA RECOVERED", message: message)
+        }
+    }
+
+    /// Called when the user deletes a workspace.
+    func removeSavedSession(forWorkspace id: String) {
+        var all = loadSavedSession()
+        guard all.removeValue(forKey: id) != nil,
+              let data = try? JSONEncoder().encode(all) else { return }
+        UserDefaults.standard.set(data, forKey: BrowserController.sessionDefaultsKey)
     }
 
     /// Coalesces the many save triggers (every didFinish, every tab close) into one write.
@@ -64,9 +99,8 @@ extension BrowserController {
             all[profileId] = snapshot(tabList, activeIndex: profileActiveIndices[profileId] ?? 0)
         }
         all[activeProfile.id] = snapshot(tabs, activeIndex: activeTabIndex)
-        // Drop entries for workspaces that no longer exist.
-        let liveIds = Set(profiles.map { $0.id })
-        all = all.filter { liveIds.contains($0.key) }
+        // Entries for workspaces missing from `profiles` are kept on purpose: the workspace list may
+        // have failed to load. Only deleteCustomProfile removes a workspace's tabs.
         if let data = try? JSONEncoder().encode(all) {
             UserDefaults.standard.set(data, forKey: BrowserController.sessionDefaultsKey)
         }

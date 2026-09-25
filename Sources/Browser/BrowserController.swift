@@ -48,6 +48,10 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     /// Set by File > Reopen Last Session: workspaces opened later this run restore from the
     /// previous run's snapshot even when the startup mode is not Restore.
     var reopenLastSessionRequested = false
+    /// Problems found while loading stored data, shown as toasts once the window exists.
+    var startupNotices: [String] = []
+    /// True only when stored history was unreadable AND its backup failed: never overwrite it then.
+    var historySavingBlocked = false
     /// The sheet currently shown for a page's alert()/confirm()/prompt(), and the page that opened it,
     /// so Cmd+W can still close a tab stuck in a dialog loop.
     weak var activeJSDialogSheet: NSWindow?
@@ -193,6 +197,11 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
         setupShortcuts()
         NotificationCenter.default.addObserver(forName: OnyxPasswordStore.didLoadNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
+            if !self.passwordStore.isLoaded {
+                // A failed Keychain read used to be invisible (and every save silently refused).
+                self.showVaultToastHUD(icon: "lock.trianglebadge.exclamationmark", title: "VAULT LOCKED",
+                                       message: self.vaultLockedMessage())
+            }
             self.updatePasswordsBadge(for: self.activeWebView.url)
             if self.passwordsPopover?.isShown == true {
                 self.refreshPasswordManagerList(query: self.passwordSearchField?.stringValue ?? "")
@@ -200,6 +209,7 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
         }
         
         snapshotLastSessionAtLaunch()
+        showStartupNotices()
         
         // Open initial tab(s) based on user preference
         let startupMode = UserDefaults.standard.string(forKey: "OnyxStartupBehavior") ?? "startpage"
