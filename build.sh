@@ -80,9 +80,23 @@ cat <<EOF > "$CONTENTS/Info.plist"
 EOF
 
 # A stable signing identity keeps the app's designated requirement constant across rebuilds,
-# so the Keychain (password vault) does not re-prompt after every build. Override with
-# ONYX_SIGN_IDENTITY; falls back to ad-hoc signing when no Apple Development identity exists.
-SIGN_IDENTITY="${ONYX_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | awk '/Apple Development/ {print $2; exit}')}"
+# so the Keychain (password vault) does not re-prompt after every build. `security find-identity`
+# does not list identities in a stable order and this Mac has several Apple Development
+# certificates, so the chosen one is remembered in .onyx-sign-identity (git-ignored).
+# Override with ONYX_SIGN_IDENTITY; falls back to ad-hoc signing when none is available.
+ID_FILE="$DIR/.onyx-sign-identity"
+VALID_IDS="$(security find-identity -v -p codesigning 2>/dev/null)"
+if [ -n "${ONYX_SIGN_IDENTITY:-}" ]; then
+    SIGN_IDENTITY="$ONYX_SIGN_IDENTITY"
+elif [ -f "$ID_FILE" ] && grep -q "$(cat "$ID_FILE")" <<< "$VALID_IDS"; then
+    SIGN_IDENTITY="$(cat "$ID_FILE")"
+else
+    SIGN_IDENTITY="$(awk '/Apple Development/ {print $2}' <<< "$VALID_IDS" | sort | head -1)"
+    if [ -n "$SIGN_IDENTITY" ]; then
+        echo "$SIGN_IDENTITY" > "$ID_FILE"
+        echo "    (pinned signing identity $SIGN_IDENTITY in .onyx-sign-identity)"
+    fi
+fi
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 if [ "$SIGN_IDENTITY" = "-" ]; then
     echo "==> Step 4: Ad-hoc code signing $APP_NAME.app (Keychain will re-prompt after each rebuild)..."
