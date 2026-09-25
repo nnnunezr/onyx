@@ -322,12 +322,12 @@ Rules for every coding session:
 
 **Tier 0 (this month, about 6.5 h)**
 - [ ] **Session 0 (about 30 min, no code).**
-  - ARCH-1: create the private remote and push.
-  - PRIV-1a: rotate the NinjaTrader, Tradesea and bank passwords.
-  - PERF-18-V: Web Inspector baseline, including background-tab CPU and which tabs live in pid 93231. Write it down.
+  - [x] ARCH-1: create the private remote and push. Done 2026-09-25: https://github.com/nnnunezr/onyx (private).
+  - [ ] PRIV-1a: rotate the NinjaTrader, Tradesea and bank passwords. (Natan)
+  - [ ] PERF-18-V: Web Inspector baseline, including background-tab CPU and which WebContent process holds the most memory. Write it down. (Natan, optional)
   - Set the startup mode to Restore in Settings now. With today's bug it brings back Personal only, which still beats nothing.
-  - ARCH-17: freeze Android (decided above).
-  - Commit `docs/ROADMAP.md`.
+  - [x] ARCH-17: freeze Android (decided above).
+  - [x] Commit `docs/ROADMAP.md`.
 - [x] **Session 1 (about 1.5 h): keep your tabs, cut the waste.** Done 2026-09-24.
   - ARCH-5a first (always save, merge unvisited workspaces, launch snapshot, 2 s debounce).
   - PERF-1: hostname guard, and remove the `evaluateJavaScript` re-injection.
@@ -345,7 +345,7 @@ Rules for every coding session:
   - PRIV-3, then the `ithub.com` dummy-entry test.
 
 **Tier 1 (only when an item bites)**
-- [ ] **Session 5 (about 2 h): data safety.** ARCH-5 rest (Reopen Last Session, minimal logging), ARCH-4 (export the defaults first), PRIV-1 toast.
+- [ ] **Session 5 (about 2 h): data safety.** ARCH-5 rest (Reopen Last Session: done 2026-09-25; minimal logging still open), ARCH-4 (export the defaults first), PRIV-1 toast.
 - [ ] **Session 6 (about 2 h): failure states.** ARCH-21-V error page with the `showingErrorPage` flag, DSGN-18-V, DSGN-19-V (with DC-2), DSGN-23-V (verify it first).
 - [ ] **Session 7 (about 3 h):** FEAT-2 find in page.
 - [ ] **Session 8 (about 2 h): tabs and nav.** FEAT-3, FEAT-20-V, FEAT-21-V, FEAT-5.
