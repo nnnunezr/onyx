@@ -125,6 +125,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(importPasswordsItem)
         fileMenu.addItem(exportPasswordsItem)
         fileMenu.addItem(NSMenuItem.separator())
+        let reopenSessionItem = NSMenuItem(title: "Reopen Last Session", action: #selector(BrowserController.menuReopenLastSession), keyEquivalent: "")
+        reopenSessionItem.target = controller
+        fileMenu.addItem(reopenSessionItem)
+        fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(closeTabItem)
         fileMenu.addItem(closeWindowItem)
         fileMenuItem.submenu = fileMenu

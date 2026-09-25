@@ -76,13 +76,42 @@ extension BrowserController {
     /// Returns false when there was nothing to restore, so the caller can open a start page.
     @discardableResult
     func restoreSessionTabs(for profile: BrowserProfile) -> Bool {
-        guard UserDefaults.standard.string(forKey: "OnyxStartupBehavior") == "restore",
-              let saved = loadSavedSession()[profile.id], !saved.urls.isEmpty else { return false }
+        let fromLastSession = reopenLastSessionRequested
+        guard fromLastSession || UserDefaults.standard.string(forKey: "OnyxStartupBehavior") == "restore" else { return false }
+        let source = fromLastSession
+            ? loadSavedSession(forKey: BrowserController.lastSessionDefaultsKey)
+            : loadSavedSession()
+        guard let saved = source[profile.id], !saved.urls.isEmpty else { return false }
 
         for str in saved.urls {
             createNewTab(url: resolveQuery(str), switchTo: false)
         }
         selectTab(at: min(max(saved.activeIndex, 0), tabs.count - 1))
         return true
+    }
+
+    /// File > Reopen Last Session: on-demand restore of the previous run's tabs, for when the
+    /// startup mode is not Restore (or after an accidental quit). The current workspace gets its
+    /// tabs now; other workspaces get theirs the first time they are opened this run.
+    @objc func menuReopenLastSession() {
+        guard !isShowingSheet else { return }
+        let last = loadSavedSession(forKey: BrowserController.lastSessionDefaultsKey)
+        guard last.values.contains(where: { !$0.urls.isEmpty }) else {
+            showVaultToastHUD(icon: "clock.arrow.circlepath", title: "NOTHING TO REOPEN", message: "No tabs were saved from the previous session")
+            return
+        }
+        reopenLastSessionRequested = true
+        if let saved = last[activeProfile.id], !saved.urls.isEmpty {
+            let replaceStartPage = tabs.count == 1 && isStartPageURL(tabs[0].url) && !tabs[0].webView.canGoBack
+            let firstNew = tabs.count
+            for str in saved.urls {
+                createNewTab(url: resolveQuery(str), switchTo: false)
+            }
+            selectTab(at: firstNew + min(max(saved.activeIndex, 0), saved.urls.count - 1))
+            if replaceStartPage {
+                closeTab(at: 0)
+            }
+        }
+        showVaultToastHUD(icon: "clock.arrow.circlepath", title: "SESSION REOPENED", message: "Previous tabs restored; other workspaces restore when opened")
     }
 }

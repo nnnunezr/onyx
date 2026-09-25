@@ -45,6 +45,9 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     var edgeGlowView: DirectionalEdgeGlowView!
     var adBlockRuleList: WKContentRuleList?
     var sessionSaveWorkItem: DispatchWorkItem?
+    /// Set by File > Reopen Last Session: workspaces opened later this run restore from the
+    /// previous run's snapshot even when the startup mode is not Restore.
+    var reopenLastSessionRequested = false
     /// The sheet currently shown for a page's alert()/confirm()/prompt(), and the page that opened it,
     /// so Cmd+W can still close a tab stuck in a dialog loop.
     weak var activeJSDialogSheet: NSWindow?
