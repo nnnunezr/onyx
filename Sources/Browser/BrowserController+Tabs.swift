@@ -75,12 +75,7 @@ extension BrowserController {
             webContainerView.addSubview(currentTab.webView)
         }
         
-        NSLayoutConstraint.activate([
-            currentTab.webView.topAnchor.constraint(equalTo: webContainerView.topAnchor),
-            currentTab.webView.leadingAnchor.constraint(equalTo: webContainerView.leadingAnchor),
-            currentTab.webView.trailingAnchor.constraint(equalTo: webContainerView.trailingAnchor),
-            currentTab.webView.bottomAnchor.constraint(equalTo: webContainerView.bottomAnchor)
-        ])
+        currentTab.webView.frame = webContainerView.bounds
         
         if pageHadFocus {
             window?.makeFirstResponder(currentTab.webView)
