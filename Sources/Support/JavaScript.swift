@@ -34,6 +34,17 @@ enum SearchEngines {
         return supported.contains(key) ? key : nil
     }
 
+    static func displayName(_ key: String) -> String {
+        switch key {
+        case "google": return "Google"
+        case "brave": return "Brave"
+        case "perplexity": return "Perplexity"
+        case "kagi": return "Kagi"
+        case "bing": return "Bing"
+        default: return "DuckDuckGo"
+        }
+    }
+
     static var current: String {
         let stored = UserDefaults.standard.string(forKey: "OnyxSearchEngine") ?? "duckduckgo"
         return normalize(stored) ?? "duckduckgo"

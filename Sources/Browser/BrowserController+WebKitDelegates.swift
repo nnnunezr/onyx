@@ -30,11 +30,9 @@ extension BrowserController {
                 updateTabFavicon(for: matchingTab, favicon: cached)
             }
         }
-        if isResearchURL(webView.url) {
-            injectOnyxResearchScript(into: webView)
-        } else if isSearchURL(webView.url) {
-            injectOnyxSearchScript(into: webView)
-        }
+        // Search and research pages are themed only by the document-start/end user scripts
+        // (installSearchThemeScripts). The evaluateJavaScript re-injections from here and
+        // didFinish (up to 7 per search) are gone.
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -43,9 +41,6 @@ extension BrowserController {
         }
         if let url = webView.url, !url.isFileURL {
             addBrowsingHistory(title: webView.title ?? "", url: url)
-        }
-        if isSearchURL(webView.url) {
-            injectOnyxSearchScript(into: webView)
         }
         if isStartPageURL(webView.url) {
             webView.evaluateJavaScript(startPageProfileScript(), completionHandler: nil)
@@ -60,15 +55,6 @@ extension BrowserController {
         }
         
         if isResearchURL(webView.url) {
-            injectOnyxResearchScript(into: webView)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self, weak webView] in
-                guard let webView = webView else { return }
-                self?.injectOnyxResearchScript(into: webView)
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self, weak webView] in
-                guard let webView = webView else { return }
-                self?.injectOnyxResearchScript(into: webView)
-            }
             if webView == activeWebView {
                 // Loaded: stop the orb (it used to start here and spin at 60 Hz indefinitely).
                 searchThinkingOrb.stopAnimation()
@@ -76,15 +62,6 @@ extension BrowserController {
                 updateSearchFavicon(for: webView.url ?? activeTab.url)
             }
         } else if isSearchURL(webView.url) {
-            injectOnyxSearchScript(into: webView)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak webView] in
-                guard let webView = webView else { return }
-                self?.injectOnyxSearchScript(into: webView)
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self, weak webView] in
-                guard let webView = webView else { return }
-                self?.injectOnyxSearchScript(into: webView)
-            }
             // Auto-detect and disable bot verification for a seamless private search experience
             webView.evaluateJavaScript("document.querySelector('.anomaly-modal, [class*=\"anomaly-modal\"], #anomaly-detected') !== null") { [weak self] (res, _) in
                 if (res as? Bool) == true {
@@ -185,29 +162,13 @@ extension BrowserController {
         // target="_blank" and window.open() are handled by webView(_:createWebViewWith:...) so
         // popups keep their window.opener link (required by OAuth / "Sign in with..." flows).
         
-        // Programmatic navigations (address bar search, back/forward, direct load, reload) must ALWAYS navigate
-        if navigationAction.navigationType == .other || navigationAction.navigationType == .reload || navigationAction.navigationType == .backForward {
-            decisionHandler(.allow, preferences)
-            return
-        }
-        
-        // For user actions requesting a download (e.g. option-click or <a download>):
+        // <a download> and Option-click: the page asked for a file, so always save it, whatever
+        // the navigation type. Script-driven downloads (`a.click()` on a blob: or data: link, as
+        // Drive, Docs exports and most "Export CSV" buttons do) arrive as .other; an early
+        // `.other -> allow` return used to load them as a page. The old extension allowlist also
+        // sent every .pdf, .png, .csv or extensionless link inline.
         if navigationAction.shouldPerformDownload {
-            if let url = navigationAction.request.url {
-                let ext = url.pathExtension.lowercased()
-                let downloadExtensions: Set<String> = [
-                    "dmg", "pkg", "zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar",
-                    "iso", "exe", "msi", "apk", "bin", "ipa", "deb", "rpm", "jar", "war",
-                    "torrent", "appimage"
-                ]
-                // Only download if the file is an actual binary/installer/archive asset
-                if downloadExtensions.contains(ext) {
-                    decisionHandler(.download, preferences)
-                    return
-                }
-            }
-            // All regular web links, domains (.com, .org, .net), and pages navigate inline!
-            decisionHandler(.allow, preferences)
+            decisionHandler(.download, preferences)
             return
         }
         
@@ -215,80 +176,18 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        let rawMime = navigationResponse.response.mimeType?.lowercased() ?? ""
-        let mime = rawMime.components(separatedBy: ";").first?.trimmingCharacters(in: .whitespaces) ?? ""
-        
-        // 1. NEVER download web documents, HTML, plain text, scripts, styles, XML, JSON, or standard media
-        if mime == "text/html" ||
-           mime.contains("html") ||
-           mime == "application/xhtml+xml" ||
-           mime.contains("xml") ||
-           mime == "text/plain" ||
-           mime == "text/css" ||
-           mime.contains("javascript") ||
-           mime.contains("json") ||
-           mime.hasPrefix("image/") ||
-           mime.hasPrefix("video/") ||
-           mime.hasPrefix("audio/") ||
-           mime == "application/pdf" {
-            decisionHandler(.allow)
-            return
+        let http = navigationResponse.response as? HTTPURLResponse
+        let decision = DownloadPolicy.decideResponse(
+            statusCode: http?.statusCode,
+            contentDisposition: http?.value(forHTTPHeaderField: "Content-Disposition"),
+            isMainFrame: navigationResponse.isForMainFrame,
+            canShowMIMEType: navigationResponse.canShowMIMEType
+        )
+        switch decision {
+        case .allow: decisionHandler(.allow)
+        case .download: decisionHandler(.download)
+        case .cancel: decisionHandler(.cancel)
         }
-        
-        // 2. HTTP redirects (3xx) and No Content (204/205) must never trigger downloads
-        if let httpResponse = navigationResponse.response as? HTTPURLResponse {
-            let status = httpResponse.statusCode
-            if (300...399).contains(status) || status == 204 || status == 205 {
-                decisionHandler(.allow)
-                return
-            }
-        }
-        
-        // 3. Subframes / iframes must never trigger full file downloads
-        if !navigationResponse.isForMainFrame {
-            if navigationResponse.canShowMIMEType {
-                decisionHandler(.allow)
-            } else {
-                decisionHandler(.cancel)
-            }
-            return
-        }
-        
-        // 4. Check for Content-Disposition: attachment header for explicit non-HTML downloads
-        if let httpResponse = navigationResponse.response as? HTTPURLResponse {
-            let headers = httpResponse.allHeaderFields
-            for (k, v) in headers {
-                if let keyStr = k as? String, keyStr.caseInsensitiveCompare("content-disposition") == .orderedSame {
-                    if let valStr = v as? String, valStr.lowercased().contains("attachment") {
-                        if !mime.contains("html") && !mime.contains("xml") && mime != "text/plain" {
-                            decisionHandler(.download)
-                            return
-                        }
-                    }
-                }
-            }
-        }
-        
-        // 5. If WebKit cannot display the MIME type inline, ONLY trigger download if it has a known downloadable file extension!
-        if !navigationResponse.canShowMIMEType {
-            let url = navigationResponse.response.url
-            let ext = url?.pathExtension.lowercased() ?? ""
-            let knownDownloadExtensions: Set<String> = [
-                "dmg", "pkg", "zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar",
-                "iso", "exe", "msi", "apk", "bin", "ipa", "deb", "rpm", "jar", "war",
-                "torrent", "appimage", "csv", "tsv", "xlsx", "docx", "pptx"
-            ]
-            if knownDownloadExtensions.contains(ext) {
-                decisionHandler(.download)
-                return
-            } else {
-                // Regular websites, domains (.com), API endpoints, and unknown content types must render inline or show web error
-                decisionHandler(.allow)
-                return
-            }
-        }
-        
-        decisionHandler(.allow)
     }
     
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
@@ -299,6 +198,16 @@ extension BrowserController {
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
         download.delegate = self
         registerDownload(download: download, sourceURL: navigationResponse.response.url)
+    }
+
+    /// Right-click > Download Linked File / Download Image / Download Video. WebKit creates these
+    /// downloads itself and hands them only to this private WKUIDelegate hook; with no one claiming
+    /// them they get no delegate and nothing is saved. If a future WebKit stops calling it, the
+    /// menu items just go back to doing nothing.
+    @objc(_webView:contextMenuDidCreateDownload:)
+    func webView(_ webView: WKWebView, contextMenuDidCreateDownload download: WKDownload) {
+        download.delegate = self
+        registerDownload(download: download, sourceURL: download.originalRequest?.url)
     }
     
     // MARK: - WebContent Process Crash Recovery

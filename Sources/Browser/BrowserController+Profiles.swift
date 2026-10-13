@@ -47,7 +47,8 @@ extension BrowserController {
         config.suppressesIncrementalRendering = false
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.websiteDataStore = websiteDataStore(for: profile)
-        config.applicationNameForUserAgent = "Version/18.3 Safari/605.1.15"
+        // No customUserAgent on the web views: WebKit builds the platform part, this adds the Safari tail.
+        config.applicationNameForUserAgent = UserAgent.applicationName
         // Private preference (Web Inspector context menu). KVC on a key WebKit no longer
         // implements throws and would crash at launch, so check the setter first.
         PrivateWebKit.set(config.preferences, key: "developerExtrasEnabled", setter: "_setDeveloperExtrasEnabled:", value: true)
@@ -64,6 +65,7 @@ extension BrowserController {
             config.userContentController.add(self, name: name)
         }
         config.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: "onyxFetchFeed")
+        config.userContentController.add(self, contentWorld: .defaultClient, name: "onyxContextMenu")
         
         profileConfigurations[profile.id] = config
         return config

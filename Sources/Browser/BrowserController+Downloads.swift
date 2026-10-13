@@ -337,6 +337,29 @@ extension BrowserController {
         let downloadsDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
         
+        if activeDownloads[download]?.asksForLocation == true {
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = cleanName
+            panel.directoryURL = downloadsDir
+            panel.canCreateDirectories = true
+            let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+                guard response == .OK, let url = panel.url else {
+                    completionHandler(nil)   // cancels the download; it is listed as cancelled
+                    return
+                }
+                // The panel already confirmed "Replace"; WebKit refuses to write over a file.
+                try? FileManager.default.removeItem(at: url)
+                self?.updateDownloadDestination(download: download, url: url, filename: url.lastPathComponent)
+                completionHandler(url)
+            }
+            if let win = window {
+                panel.beginSheetModal(for: win, completionHandler: finish)
+            } else {
+                finish(panel.runModal())
+            }
+            return
+        }
+        
         var targetURL = downloadsDir.appendingPathComponent(cleanName)
         if FileManager.default.fileExists(atPath: targetURL.path) {
             let ext = targetURL.pathExtension

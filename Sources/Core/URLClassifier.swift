@@ -64,8 +64,14 @@ enum URLClassifier {
         return false
     }
 
+    /// Search pages that get the Onyx dark theme. Google is a search page (address bar, tab title)
+    /// but is left to its native dark mode: the theme kept breaking its layout.
+    static func isThemedSearch(_ url: URL?) -> Bool {
+        return isSearch(url) && !isGoogleSearchHost(normalizedHost(url))
+    }
+
     /// The same rules as JavaScript, for the injected search-theme scripts. Defines `host`, `href`,
-    /// `isDuck`, `isGoogle`, `isBrave`, `isSearch` and `isChat` in the enclosing function scope.
+    /// `isDuck`, `isGoogle`, `isBrave`, `isSearch`, `isThemedSearch` and `isChat` in the enclosing function scope.
     static var javaScriptClassifier: String {
         let googleList = googleSearchDomains.map { "'\($0)'" }.joined(separator: ", ")
         return """
@@ -81,6 +87,9 @@ enum URLClassifier {
                              (onyxPath === '/search' || onyxPath.startsWith('/imghp') || host.startsWith('images.'));
             const isBrave = host === 'search.brave.com' && onyxPath.startsWith('/search');
             const isSearch = isDuck || isGoogle || isBrave;
+            const isBing = (host === 'bing.com' || host === 'www.bing.com') && onyxPath.startsWith('/search');
+            const isKagi = (host === 'kagi.com' || host === 'www.kagi.com') && onyxPath.startsWith('/search');
+            const isThemedSearch = isDuck || isBrave || isBing || isKagi;
         """
     }
 }

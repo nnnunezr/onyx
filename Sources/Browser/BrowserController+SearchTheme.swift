@@ -21,15 +21,12 @@ extension BrowserController {
         let jsSourceStart = """
         (function() {
             \(URLClassifier.javaScriptClassifier)
-            if (!isSearch) return;
+            if (!isThemedSearch) return;
 
             try {
                 document.documentElement.style.setProperty('background-color', '#070709', 'important');
                 document.documentElement.style.setProperty('color-scheme', 'dark', 'important');
                 document.documentElement.setAttribute('data-theme', 'dark');
-                if (isGoogle) {
-                    document.cookie = "PREF=f6=400; domain=.google.com; path=/; max-age=31536000";
-                }
             } catch(e) {}
 
             function ensureBodyDark() {
@@ -47,66 +44,31 @@ extension BrowserController {
             });
             try { bodyObs.observe(document.documentElement, { childList: true }); } catch(e) {}
 
-            const css = isChat ? `\(escapedResearchCSS)` : `\(escapedSearchCSS)`;
-            const styleId = isChat ? 'onyx-research-theme' : 'onyx-search-theme';
-
-            let themeStyle = document.getElementById(styleId);
-            if (!themeStyle) {
-                themeStyle = document.createElement('style');
-                themeStyle.id = styleId;
-                themeStyle.textContent = css;
-                (document.head || document.documentElement).appendChild(themeStyle);
-            }
-
-            function pinStyle() {
-                const target = document.head || document.documentElement;
-                if (!target) return;
-                if (!document.getElementById(styleId)) {
-                    target.appendChild(themeStyle);
-                } else if (target.lastElementChild !== themeStyle) {
-                    target.appendChild(themeStyle);
+            // One parse per page. An adopted stylesheet always cascades after the page's own
+            // sheets, so it no longer has to be re-appended to the end of <head> (each re-append of
+            // a <style> re-parsed the whole 43 KB sheet) or re-injected from didCommit/didFinish.
+            if (!window.__onyxThemeSheet) {
+                const css = isChat ? `\(escapedResearchCSS)` : `\(escapedSearchCSS)`;
+                try {
+                    const sheet = new CSSStyleSheet();
+                    sheet.replaceSync(css);
+                    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+                    window.__onyxThemeSheet = sheet;
+                } catch(e) {
+                    const style = document.createElement('style');
+                    style.id = isChat ? 'onyx-research-theme' : 'onyx-search-theme';
+                    style.textContent = css;
+                    (document.head || document.documentElement).appendChild(style);
+                    window.__onyxThemeSheet = style;
                 }
             }
-
-            // Keep stylesheet at very end of <head> during incremental HTML stream
-            const headObserver = new MutationObserver(() => {
-                pinStyle();
-            });
-            try {
-                headObserver.observe(document.documentElement, { childList: true, subtree: true });
-            } catch(e) {}
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    pinStyle();
-                    setTimeout(() => { try { headObserver.disconnect(); } catch(e) {} }, 6000);
-                });
-            }
-
-            // Capture-phase instant tab feedback when switching categories (All, Images, Videos, etc.)
-            window.addEventListener('click', function(e) {
-                const tab = e.target && e.target.closest && e.target.closest('a.C6AK7c, a.XVMlrc, .beZ0tf a, .rQTE8b a, .mOKdDc, #hdtb-tls');
-                if (tab) {
-                    const allTabs = document.querySelectorAll('.beZ0tf a, .rQTE8b a, a.C6AK7c, a.XVMlrc, .mOKdDc, #hdtb-tls');
-                    allTabs.forEach(t => {
-                        t.style.setProperty('background', 'rgba(255, 255, 255, 0.04)', 'important');
-                        t.style.setProperty('border-color', 'rgba(255, 255, 255, 0.08)', 'important');
-                        t.style.setProperty('color', '#a1a1aa', 'important');
-                        t.style.setProperty('font-weight', '500', 'important');
-                    });
-                    tab.style.setProperty('background', 'rgba(255, 255, 255, 0.14)', 'important');
-                    tab.style.setProperty('border-color', 'rgba(255, 255, 255, 0.28)', 'important');
-                    tab.style.setProperty('color', '#ffffff', 'important');
-                    tab.style.setProperty('font-weight', '600', 'important');
-                }
-            }, true);
         })();
         """
 
         let jsSource = """
         (function() {
             \(URLClassifier.javaScriptClassifier)
-            if (!isSearch) return;
+            if (!isThemedSearch) return;
 
             try {
                 document.documentElement.style.colorScheme = 'dark';
@@ -118,27 +80,31 @@ extension BrowserController {
                     meta.content = 'dark';
                     (document.head || document.documentElement).appendChild(meta);
                 }
-                if (isGoogle) {
-                    document.cookie = "PREF=f6=400; domain=.google.com; path=/; max-age=31536000";
-                }
             } catch(e) {}
 
+            // Re-attaches the document-start sheet if the page replaced adoptedStyleSheets or
+            // dropped the fallback <style>. Never parses the CSS again.
             function injectStyles() {
-                if (isChat) {
-                    if (!document.getElementById('onyx-research-theme')) {
-                        const style = document.createElement('style');
-                        style.id = 'onyx-research-theme';
-                        style.textContent = `\(escapedResearchCSS)`;
-                        (document.head || document.documentElement).appendChild(style);
+                const sheet = window.__onyxThemeSheet;
+                if (!sheet) return;
+                if (sheet instanceof CSSStyleSheet) {
+                    if (!document.adoptedStyleSheets.includes(sheet)) {
+                        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
                     }
-                } else {
-                    if (!document.getElementById('onyx-search-theme')) {
-                        const style = document.createElement('style');
-                        style.id = 'onyx-search-theme';
-                        style.textContent = `\(escapedSearchCSS)`;
-                        (document.head || document.documentElement).appendChild(style);
-                    }
+                } else if (!sheet.isConnected) {
+                    (document.head || document.documentElement).appendChild(sheet);
                 }
+            }
+
+            // duck.ai's "works best in..." promo: close it through its own button.
+            function dismissPromoBanner() {
+                document.querySelectorAll('button').forEach(b => {
+                    const label = (b.getAttribute('aria-label') || '').toLowerCase();
+                    if ((label.includes('close') || label.includes('dismiss')) &&
+                        (b.parentElement?.textContent || '').includes('Duck.ai works best')) {
+                        b.click();
+                    }
+                });
             }
 
             function scrubTitle() {
@@ -462,9 +428,11 @@ extension BrowserController {
                             <span style="color: #71717a; font-size: 11px; font-weight: 500;">INSTANT OVERVIEW</span>
                         </div>
                         <div class="onyx-ai-content">
-                            <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.65;">${summaryText}</p>
+                            <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.65;"></p>
                         </div>
                     `;
+                    // Snippet text comes from the page: set as text, never as HTML.
+                    card.querySelector('.onyx-ai-content p').textContent = summaryText;
                     const brandHeader = document.getElementById('onyx-brand-header');
                     if (brandHeader && brandHeader.parentElement === resultsContainer) {
                         if (brandHeader.nextSibling) {
@@ -644,6 +612,7 @@ extension BrowserController {
                 hideMascotsAndPromos();
                 if (isChat) {
                     dismissOnboarding();
+                    dismissPromoBanner();
                     autoSubmitIfReady();
                     injectThinkingOrbHUD();
                 } else {
@@ -706,49 +675,6 @@ extension BrowserController {
         config.userContentController.addUserScript(userScriptEnd)
     }
     
-    func injectOnyxResearchScript(into webView: WKWebView) {
-        guard isResearchURL(webView.url) else { return }
-        let escapedCSS = onyxResearchCSS
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-        let script = """
-        (function() {
-            if (!document.getElementById("onyx-research-theme")) {
-                let s = document.createElement("style");
-                s.id = "onyx-research-theme";
-                s.textContent = `\(escapedCSS)`;
-                (document.head || document.documentElement).appendChild(s);
-            }
-            document.querySelectorAll('.RM8cPgCF1NymxEVCc19D, .y8qZjjhkSVTmBOORd3oQ, .S1TV9gKXE9qTlJCKQyVA').forEach(e => {
-                e.style.display = 'none';
-            });
-            let brandTexts = Array.from(document.querySelectorAll("strong, span, div")).filter(e => e.innerText && e.innerText.trim() === "Duck.ai");
-            brandTexts.forEach(b => {
-                b.textContent = "Onyx Research";
-            });
-            // Safely dismiss promotional banner via its close button
-            document.querySelectorAll('button').forEach(b => {
-                const label = (b.getAttribute('aria-label') || '').toLowerCase();
-                const pText = (b.parentElement?.textContent || '');
-                if ((label.includes('close') || label.includes('dismiss')) && pText.includes('Duck.ai works best')) {
-                    b.click();
-                }
-            });
-            let submitBtn = document.querySelector('form button[type="submit"]') ||
-                            Array.from(document.querySelectorAll('form button')).find(b => {
-                                let t = (b.innerText || '').trim().toLowerCase();
-                                let a = (b.getAttribute('aria-label') || '').toLowerCase();
-                                return t === 'ask' || t === 'send' || a === 'send';
-                            });
-            if (submitBtn && !submitBtn.disabled) {
-                submitBtn.click();
-            }
-        })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
-    
     func isResearchURL(_ url: URL?) -> Bool {
         return URLClassifier.isResearch(url)
     }
@@ -780,381 +706,5 @@ extension BrowserController {
             }
         }
         return extractResearchQuery(from: url)
-    }
-
-    func injectOnyxSearchScript(into webView: WKWebView) {
-        guard isSearchURL(webView.url) else { return }
-        let escapedCSS = onyxSearchCSS
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-        let script = """
-        (function() {
-            if (document.querySelector('.anomaly-modal, [class*="anomaly-modal"], #anomaly-detected')) {
-                return;
-            }
-            try {
-                document.documentElement.style.colorScheme = 'dark';
-                document.documentElement.setAttribute('data-theme', 'dark');
-                let meta = document.querySelector('meta[name="color-scheme"]');
-                if (!meta) {
-                    meta = document.createElement('meta');
-                    meta.name = 'color-scheme';
-                    meta.content = 'dark';
-                    (document.head || document.documentElement).appendChild(meta);
-                }
-                if (window.location.hostname.includes('google.')) {
-                    document.cookie = "PREF=f6=400; domain=.google.com; path=/; max-age=31536000";
-                }
-            } catch(e) {}
-
-            let themeStyle = document.getElementById("onyx-search-theme");
-            if (!themeStyle) {
-                themeStyle = document.createElement("style");
-                themeStyle.id = "onyx-search-theme";
-            }
-            themeStyle.textContent = `\(escapedCSS)`;
-            const styleTarget = document.head || document.documentElement;
-            if (styleTarget && (themeStyle.parentElement !== styleTarget || styleTarget.lastElementChild !== themeStyle)) {
-                styleTarget.appendChild(themeStyle);
-            }
-
-            if (document.title && document.title.includes("DuckDuckGo")) {
-                document.title = document.title
-                    .replace(/ at DuckDuckGo/g, '')
-                    .replace(/ - DuckDuckGo/g, '')
-                    .replace(/DuckDuckGo — /g, '')
-                    .replace(/DuckDuckGo/g, '')
-                    .trim();
-                if (!document.title.startsWith('✦ ')) {
-                    document.title = '✦ ' + document.title + ' — Search';
-                }
-            } else if (document.title && document.title.includes("Google Search")) {
-                document.title = document.title
-                    .replace(/ - Google Search/g, '')
-                    .replace(/Google Search/g, '')
-                    .trim();
-                if (!document.title.startsWith('✦ ')) {
-                    document.title = '✦ ' + document.title + ' — Search';
-                }
-            }
-
-            const badSelectors = [
-                '.header__logo-wrap', '.header__logo', '.header__logo__img', '[data-testid="logo"]',
-                '#header-logo-wrapper', '#header-logo', '#logo', '[data-testid="header-logo"]',
-                '[data-testid="logo-link"]', '[data-testid="logo_link"]', 'a[aria-label*="DuckDuckGo home" i]',
-                'a[aria-label*="DuckDuckGo" i]', 'a#logo', 'a[data-testid="logo-link"]', 'a[data-testid="header-logo"]',
-                'a[href="/"]', 'header a[href="/"]', '#header a[href="/"]',
-                '.header a[href="/"]', '.header-wrap a[href="/"]', '.site-wrapper header a[href="/"]',
-                '[class*="HeaderLogo"]', '[class*="header_logo"]', '[class*="header__logo"]',
-                'svg[class*="logo" i]', 'svg[class*="Logo" i]', 'svg[class*="duck" i]',
-                'img[alt*="DuckDuckGo" i]', 'img[src*="duckduckgo" i]', 'img[src*="duck" i]',
-                'a[href="/compare-privacy"]', 'a[href*="compare-privacy"]', 'a[href*="compare"]',
-                '.header__tagline', '.header__text', '.header--aside', '.header--aside__item',
-                '.header__button--menu', '.js-side-menu-open',
-                '.feedback-btn', 'button[data-testid="feedback-button"]',
-                '.js-feedback-btn-wrap', '[class*="TccjmKV6"]', '[class*="bYzmzE1m"]', '[class*="s_aX02AKO"]',
-                '#footer-feedback-wrapper', '.nav-menu--feedback', '.react-feedback-prompt-mvc-wrapper',
-                'a[href*="assist=true"]', 'li:has(> a[href*="assist=true"])',
-                'a[href*="ia=chat"]:not(.onyx-research-switch-btn)', 'li:has(> a[href*="ia=chat"]:not(.onyx-research-switch-btn))',
-                'li:has(> button[aria-label*="Search Settings"])',
-                'button[aria-label*="Search Settings"]',
-                '[data-testid="region-filter"] svg', '.dropdown--region svg',
-                'button[aria-label*="Region" i] svg', 'button[aria-label*="region" i] svg',
-                '.ddg-extension-banner', '.onboarding-ed', '.js-onboarding-wrapper', '.badge--ad',
-                '[data-testid="ad"]', '[data-testid="ad-item"]', '.results--ads', '.result--ad', '.ads-wrapper',
-                '.footer', '#footer', '.badge--privacy', '.badge--protection',
-                '.RM8cPgCF1NymxEVCc19D', '.y8qZjjhkSVTmBOORd3oQ', '.S1TV9gKXE9qTlJCKQyVA',
-                '[class*="extension-banner"]', '[class*="onboarding"]', '[class*="feedback"]', '[class*="Feedback"]',
-                '[class*="feedback-btn"]', '[class*="feedback-modal"]',
-                'a[href*="spread"]', 'a[href*="newsletter"]',
-                '#logo', '.logo img', 'header svg.logo', 'a#logo', '#fbar', '#footcnt', '#foot',
-                '.uEierd', '#tads', '#tadsb', '[data-text-ad]', '.appbar', '.cv2Vmc', '.LH92ce',
-                '.TQc1id', '.SJ1Kg', '.G57R0c', '#taw',
-                '#gb', '.gb_d', '.gb_Ja', '.gb_A', '.gb_B', '[aria-label*="Google apps" i]',
-                '[aria-label*="Google app" i]', '[aria-label*="Google Account" i]',
-                'a[href*="accounts.google.com"]', 'a[href*="/saves"]', 'a[href*="/preferences"]',
-                '.HPvrce', '[class*="HPvrce"]', '.mTpL7c.HPvrce', '.u96bed.GTERze', '.Iy1nvd', '.SvoXfb',
-                '.zLSRge', '.w2jn8d', '.PwiNU', '.m29tEd', '.hdtb-ms', '#hdtb-ms',
-                '.Q3DXx', '.Efnghe', '.apFnFf', '[aria-label*="Share" i]', '[aria-label*="Compartir" i]', '[data-share-url]'
-            ];
-            badSelectors.forEach(sel => {
-                try {
-                    document.querySelectorAll(sel).forEach(e => {
-                        e.style.setProperty('display', 'none', 'important');
-                        e.style.setProperty('visibility', 'hidden', 'important');
-                        e.style.setProperty('opacity', '0', 'important');
-                        e.style.setProperty('width', '0', 'important');
-                        e.style.setProperty('height', '0', 'important');
-                        e.style.setProperty('max-width', '0', 'important');
-                        e.style.setProperty('max-height', '0', 'important');
-                    });
-                } catch(err) {}
-            });
-            document.querySelectorAll('strong, span, p, a').forEach(el => {
-                if (el.children.length === 0 && el.innerText && el.innerText.includes('DuckDuckGo')) {
-                    el.innerText = el.innerText.replace(/DuckDuckGo/g, 'Onyx Search');
-                }
-                if (el.children.length === 0 && el.innerText && el.innerText.trim() === 'Duck.ai') {
-                    el.innerText = 'Onyx Research';
-                }
-            });
-
-            function tagSearchPill() {
-                const input = document.getElementById('search_form_input') || document.querySelector('input[name="q"]');
-                if (input) {
-                    const pill = input.closest('[class*="QsyijBlqupsaY11GFhnp"]') ||
-                                 input.closest('[class*="T265XEcezvjUhK71U8pN"]') ||
-                                 input.closest('[data-testid="search-form-input-wrapper"]') ||
-                                 input.parentElement;
-                    if (pill && !pill.classList.contains('onyx-search-pill')) {
-                        pill.classList.add('onyx-search-pill');
-                    }
-                }
-            }
-
-            function updateActiveDuckbarTab() {
-                const duckbar = document.getElementById('react-duckbar') || document.querySelector('[data-testid="duckbar"]');
-                if (!duckbar) return;
-                const ul = duckbar.querySelector('ul:first-child');
-                if (!ul) return;
-                const links = ul.querySelectorAll('a');
-                if (!links || links.length === 0) return;
-
-                const url = new URL(window.location.href);
-                const ia = (url.searchParams.get('ia') || url.searchParams.get('iar') || '').toLowerCase();
-
-                let activeLink = null;
-                links.forEach(a => {
-                    if (a.classList.contains('onyx-research-switch-btn')) return;
-                    a.classList.add('onyx-duckbar-tab');
-                    const text = (a.innerText || '').trim().toLowerCase();
-                    const href = (a.getAttribute('href') || '').toLowerCase();
-
-                    let isActive = false;
-                    if (ia === 'images' && (text.includes('image') || href.includes('ia=images') || href.includes('iar=images'))) isActive = true;
-                    else if (ia === 'videos' && (text.includes('video') || href.includes('ia=videos') || href.includes('iar=videos'))) isActive = true;
-                    else if (ia === 'news' && (text.includes('news') || href.includes('ia=news') || href.includes('iar=news'))) isActive = true;
-                    else if (ia === 'maps' && (text.includes('map') || href.includes('ia=maps') || href.includes('iar=maps'))) isActive = true;
-                    else if ((!ia || ia === 'web') && (text === 'all' || a.querySelector('svg') || a.classList.contains('SnptgjT2zdOhGYfNng6g'))) isActive = true;
-
-                    if (isActive) {
-                        a.classList.add('onyx-tab-active');
-                        a.classList.add('is-active');
-                        activeLink = a;
-                    } else {
-                        a.classList.remove('onyx-tab-active');
-                        a.classList.remove('is-active');
-                        a.classList.remove('SnptgjT2zdOhGYfNng6g');
-                    }
-                });
-
-                if (!activeLink && links.length > 0) {
-                    links[0].classList.add('onyx-tab-active');
-                    links[0].classList.add('is-active');
-                    activeLink = links[0];
-                }
-
-                // Setup or fetch the single shared light glider
-                let glider = document.getElementById('onyx-duckbar-glider');
-                if (!glider) {
-                    glider = document.createElement('div');
-                    glider.id = 'onyx-duckbar-glider';
-                    glider.className = 'onyx-duckbar-glider';
-                    duckbar.appendChild(glider);
-                }
-
-                function positionGlider(targetTab, animate) {
-                    if (!targetTab || !glider) return;
-                    const duckbarRect = duckbar.getBoundingClientRect();
-                    const tabRect = targetTab.getBoundingClientRect();
-                    if (tabRect.width === 0) {
-                        requestAnimationFrame(() => positionGlider(targetTab, animate));
-                        return;
-                    }
-                    const left = Math.round(tabRect.left - duckbarRect.left);
-                    const width = Math.min(Math.max(Math.round(tabRect.width), 30), 160);
-
-                    if (!animate) {
-                        glider.style.setProperty('transition', 'none', 'important');
-                    } else {
-                        glider.style.setProperty('transition', 'transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease', 'important');
-                    }
-                    glider.style.setProperty('transform', `translateX(${left}px)`, 'important');
-                    glider.style.setProperty('width', `${width}px`, 'important');
-                    glider.classList.add('is-ready');
-                    if (!animate) {
-                        void glider.offsetWidth;
-                    }
-                }
-
-                // Bind click listeners for instant fluid light transfer between tabs
-                links.forEach(a => {
-                    if (a.classList.contains('onyx-research-switch-btn')) return;
-                    if (a.dataset.gliderBound) return;
-                    a.dataset.gliderBound = 'true';
-                    a.addEventListener('click', () => {
-                        const currentActive = ul.querySelector('a.onyx-tab-active') || links[0];
-                        const duckbarRect = duckbar.getBoundingClientRect();
-                        const curRect = currentActive ? currentActive.getBoundingClientRect() : null;
-                        if (curRect && curRect.width > 0 && curRect.width < 200) {
-                            try {
-                                sessionStorage.setItem('onyx_glider_from_x', Math.round(curRect.left - duckbarRect.left).toString());
-                                sessionStorage.setItem('onyx_glider_from_w', Math.min(Math.max(Math.round(curRect.width), 30), 160).toString());
-                            } catch(e) {}
-                        }
-                        positionGlider(a, true);
-                        links.forEach(l => {
-                            if (l === a) {
-                                l.classList.add('onyx-tab-active');
-                                l.classList.add('is-active');
-                            } else {
-                                l.classList.remove('onyx-tab-active');
-                                l.classList.remove('is-active');
-                                l.classList.remove('SnptgjT2zdOhGYfNng6g');
-                            }
-                        });
-                    });
-                });
-
-                if (!window._onyxDuckbarResizeBound) {
-                    window._onyxDuckbarResizeBound = true;
-                    window.addEventListener('resize', () => {
-                        const current = document.querySelector('#react-duckbar ul:first-child a.onyx-tab-active') ||
-                                        document.querySelector('[data-testid="duckbar"] ul:first-child a.onyx-tab-active');
-                        if (current) positionGlider(current, false);
-                    });
-                }
-
-                if (activeLink) {
-                    let fromX = null;
-                    let fromW = null;
-                    try {
-                        fromX = sessionStorage.getItem('onyx_glider_from_x');
-                        fromW = sessionStorage.getItem('onyx_glider_from_w');
-                        sessionStorage.removeItem('onyx_glider_from_x');
-                        sessionStorage.removeItem('onyx_glider_from_w');
-                    } catch(e) {}
-
-                    const fw = parseFloat(fromW);
-                    const fx = parseFloat(fromX);
-                    if (!isNaN(fw) && !isNaN(fx) && fw >= 25 && fw <= 160 && fx >= 0 && fx <= 1200) {
-                        const duckbarRect = duckbar.getBoundingClientRect();
-                        const activeRect = activeLink.getBoundingClientRect();
-                        const newLeft = Math.round(activeRect.left - duckbarRect.left);
-                        if (Math.abs(fx - newLeft) > 5) {
-                            glider.style.setProperty('transition', 'none', 'important');
-                            glider.style.setProperty('transform', `translateX(${fx}px)`, 'important');
-                            glider.style.setProperty('width', `${fw}px`, 'important');
-                            glider.classList.add('is-ready');
-                            void glider.offsetWidth;
-                            requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                    positionGlider(activeLink, true);
-                                });
-                            });
-                            return;
-                        }
-                    }
-                    positionGlider(activeLink, false);
-                }
-            }
-
-            tagSearchPill();
-            updateActiveDuckbarTab();
-            const resultsContainer = document.querySelector('.react-results--main') ||
-                                     document.querySelector('#links');
-            if (resultsContainer) {
-                const params = new URLSearchParams(window.location.search);
-                const query = (params.get('q') || '').replace(/\\+/g, ' ');
-
-                let header = document.getElementById('onyx-brand-header');
-                if (!header) {
-                    header = document.createElement('div');
-                    header.id = 'onyx-brand-header';
-                    header.innerHTML = `
-                        <div class="onyx-brand-title">
-                            <span class="onyx-brand-dot"></span>
-                            <span>✦ Onyx Search</span>
-                            <span style="color: #71717a; font-weight: 400; font-size: 13px;">• Direct Web Index</span>
-                        </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <a href="https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=chat" class="onyx-research-switch-btn" title="Open in Deep AI Research Mode">
-                                <span>✦ Deep AI Research</span>
-                            </a>
-                        </div>
-                    `;
-                    resultsContainer.insertBefore(header, resultsContainer.firstChild);
-                } else if (header.parentElement !== resultsContainer) {
-                    resultsContainer.insertBefore(header, resultsContainer.firstChild);
-                }
-
-                let summaryText = '';
-                const aboutSnippet = document.querySelector('[data-testid="about-snippet"]') ||
-                                     document.querySelector('.module--wikipedia .module__body') ||
-                                     document.querySelector('[data-testid="module--about"] .module__text') ||
-                                     document.querySelector('.module__text');
-                if (aboutSnippet && aboutSnippet.innerText && aboutSnippet.innerText.length > 50 && !aboutSnippet.innerText.includes('USD(%)') && !aboutSnippet.innerText.includes('1D5D')) {
-                    summaryText = aboutSnippet.innerText.trim();
-                } else {
-                    const articles = document.querySelectorAll('article');
-                    for (let i = 0; i < articles.length; i++) {
-                        const art = articles[i];
-                        const title = art.querySelector('h2') ? (art.querySelector('h2').innerText || '').trim() : '';
-                        const lines = (art.innerText || '').split('\\n').map(s => s.trim()).filter(Boolean);
-                        for (let j = 0; j < lines.length; j++) {
-                            const line = lines[j];
-                            if (title && (title === line || title.includes(line) || line.includes(title))) continue;
-                            const cleaned = line.replace(/^[0-9]+\\s+(days?|hours?|mins?|weeks?|months?|years?)\\s+ago\\s*/i, '').trim();
-                            if (cleaned.length >= 40 &&
-                                !cleaned.includes('http') &&
-                                !cleaned.includes('›') &&
-                                !cleaned.includes('Only include') &&
-                                !cleaned.includes('Redo search') &&
-                                !cleaned.includes('Block this')) {
-                                summaryText = cleaned;
-                                break;
-                            }
-                        }
-                        if (summaryText) break;
-                    }
-                }
-
-                let card = document.getElementById('onyx-ai-synthesis-card');
-                if (!card && summaryText && summaryText.trim().length > 20) {
-                    card = document.createElement('div');
-                    card.id = 'onyx-ai-synthesis-card';
-                    card.innerHTML = `
-                        <div class="onyx-ai-header">
-                            <div class="onyx-ai-badge">
-                                <span>✦</span>
-                                <span>Onyx Synthetic Overview</span>
-                            </div>
-                            <span style="color: #71717a; font-size: 11px; font-weight: 500;">INSTANT OVERVIEW</span>
-                        </div>
-                        <div class="onyx-ai-content">
-                            <p style="margin: 0; font-size: 14px; color: #e2e8f0; line-height: 1.65;">${summaryText}</p>
-                        </div>
-                    `;
-                    if (header && header.parentElement === resultsContainer) {
-                        if (header.nextSibling) {
-                            resultsContainer.insertBefore(card, header.nextSibling);
-                        } else {
-                            resultsContainer.appendChild(card);
-                        }
-                    } else {
-                        resultsContainer.insertBefore(card, resultsContainer.firstChild);
-                    }
-                } else if (card && card.parentElement !== resultsContainer) {
-                    if (header && header.parentElement === resultsContainer && header.nextSibling) {
-                        resultsContainer.insertBefore(card, header.nextSibling);
-                    } else {
-                        resultsContainer.insertBefore(card, resultsContainer.firstChild);
-                    }
-                }
-            }
-        })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
     }
 }

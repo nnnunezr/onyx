@@ -380,8 +380,15 @@ extension BrowserController {
             return URL(string: "https://duckduckgo.com/?q=\(q)&ia=chat")!
         }
         
-        let defaultEngine = UserDefaults.standard.string(forKey: "OnyxSearchEngine") ?? "duckduckgo"
-        switch defaultEngine.lowercased() {
+        return webSearchURL(for: input)
+    }
+    
+    /// A plain search with the user's engine: no bangs, no research routing.
+    func webSearchURL(for text: String) -> URL {
+        var cs = CharacterSet.urlQueryAllowed
+        cs.remove(charactersIn: "&+=#?")
+        let q = text.addingPercentEncoding(withAllowedCharacters: cs) ?? text
+        switch SearchEngines.current {
         case "google":
             return URL(string: "https://www.google.com/search?q=\(q)")!
         case "brave":

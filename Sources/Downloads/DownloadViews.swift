@@ -16,6 +16,8 @@ class OnyxDownloadItem: Identifiable {
     let startDate: Date = Date()
     var finishDate: Date?
     var errorMessage: String?
+    /// "Download Linked File As…" / "Save Image As…": ask where to save instead of ~/Downloads.
+    var asksForLocation = false
     
     enum State {
         case downloading

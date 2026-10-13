@@ -90,8 +90,12 @@ extension BrowserController {
             "media\\.net"
         ]
         
+        // Anchored to the request's host (the domain or a subdomain of it), third-party loads only.
+        // The old ".*domain.*" filters blocked any URL that merely contained a tracker name, such
+        // as a search for "doubleclick.net", with no feedback.
         var rules: [[String: Any]] = blockedDomains.map { pattern in
-            ["trigger": ["url-filter": ".*" + pattern + ".*"], "action": ["type": "block"]]
+            ["trigger": ["url-filter": "^[^:]+://+([^:/]+\\.)?" + pattern + "[:/]", "load-type": ["third-party"]],
+             "action": ["type": "block"]]
         }
         
         // Native CSS display:none for YouTube promo / ad nodes
@@ -144,5 +148,7 @@ extension BrowserController {
     func installUserScripts(for config: WKWebViewConfiguration) {
         setupYouTubeAdBlocker(for: config)
         installSearchThemeScripts(for: config)
+        // Onyx's own content world: pages cannot see or spoof the context-menu probe.
+        config.userContentController.addUserScript(WKUserScript(source: onyxContextMenuScript, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .defaultClient))
     }
 }

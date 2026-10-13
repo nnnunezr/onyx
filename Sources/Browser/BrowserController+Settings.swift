@@ -173,6 +173,11 @@ extension BrowserController {
         let body = message.body as? [String: Any]
         
         switch message.name {
+        // Onyx's context-menu probe. Registered only in Onyx's own content world, so page
+        // scripts cannot post it; any frame is fine.
+        case "onyxContextMenu":
+            guard let dict = body, let webView = message.webView as? OnyxWebView else { return }
+            handleContextMenuMessage(dict, from: webView)
         // Posted by pages Onyx injects into web content: allowed from the web, but scoped.
         case "onyxSavePasswordPrompt":
             guard message.frameInfo.isMainFrame, let dict = body, let webView = message.webView else { return }

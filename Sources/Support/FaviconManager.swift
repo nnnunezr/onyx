@@ -96,7 +96,7 @@ class FaviconManager {
             }
             let targetURL = urls[index]
             var req = URLRequest(url: targetURL)
-            req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+            req.setValue(UserAgent.full, forHTTPHeaderField: "User-Agent")
             
             session.dataTask(with: req) { [weak self] (data, response, error) in
                 guard let self = self else { return }

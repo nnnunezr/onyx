@@ -21,14 +21,13 @@ class BrowserTab: NSObject {
         self.url = url
         self.title = url.isFileURL ? "Onyx" : (url.host ?? "New Tab")
         
-        self.webView = WKWebView(frame: .zero, configuration: configuration)
+        self.webView = OnyxWebView(frame: .zero, configuration: configuration)
         // Sized by autoresizing mask, not Auto Layout: element fullscreen (YouTube etc.) moves the
         // web view into WebKit's own window and sizes it by frame. Without a mask it collapses to
         // zero there and the fullscreen window stays black.
         self.webView.translatesAutoresizingMaskIntoConstraints = true
         self.webView.autoresizingMask = [.width, .height]
         self.webView.allowsBackForwardNavigationGestures = true
-        self.webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15"
         if #available(macOS 13.3, *) {
             self.webView.isInspectable = true
         }
