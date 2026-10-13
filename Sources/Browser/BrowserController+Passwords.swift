@@ -445,8 +445,7 @@ extension BrowserController {
             self?.autofillActiveTab(with: entry)
         }
         row.onCopyPassword = { [weak self] entry in
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(entry.password, forType: .string)
+            self?.copySecret(entry.password)
             self?.showVaultToastHUD(icon: "key.fill", title: "PASSWORD COPIED", message: "Password for \(entry.title) copied to clipboard")
         }
         row.onCopyUsername = { [weak self] entry in
@@ -532,11 +531,23 @@ extension BrowserController {
         return false
     }
     
+    /// Copies a password marked as concealed (clipboard managers skip it) and empties the
+    /// clipboard after 60 s, unless something else has been copied since.
+    func copySecret(_ secret: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(secret, forType: .string)
+        pb.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        let count = pb.changeCount
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+            if NSPasteboard.general.changeCount == count { NSPasteboard.general.clearContents() }
+        }
+    }
+    
     @objc func generateQuickPasswordAction() {
         let pass = passwordStore.generateStrongPassword(length: 16)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(pass, forType: .string)
-        showVaultToastHUD(icon: "dice.fill", title: "STRONG PASSWORD GENERATED", message: "16-char crypto password copied to clipboard")
+        copySecret(pass)
+        showVaultToastHUD(icon: "dice.fill", title: "STRONG PASSWORD GENERATED", message: "16-char crypto password copied to clipboard (cleared in 60 s)")
     }
     
     @objc func openAddPasswordModal() {
@@ -778,8 +789,7 @@ extension BrowserController {
             if let img = NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil) {
                 eyeToggleBtn.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 11, weight: .medium))
             }
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(pass, forType: .string)
+            copySecret(pass)
             self.showVaultToastHUD(icon: "sparkles", title: "PASSWORD GENERATED", message: "16-char crypto password copied to clipboard")
         }
         objc_setAssociatedObject(generatePasswordBtn, "genHandler", genHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
@@ -1122,8 +1132,7 @@ extension BrowserController {
             if success {
                 self?.showVaultToastHUD(icon: "sparkles", title: "AUTOFILL SUCCESSFUL", message: "Filled credentials for \(entry.title)")
             } else {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(entry.password, forType: .string)
+                self?.copySecret(entry.password)
                 self?.showVaultToastHUD(icon: "key.fill", title: "PASSWORD COPIED", message: "No login fields found. Copied password to clipboard")
             }
         }
