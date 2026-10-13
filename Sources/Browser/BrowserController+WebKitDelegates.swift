@@ -215,6 +215,15 @@ extension BrowserController {
             return
         }
         
+        // mailto:, tel:, Zoom and Teams links: ask before handing them to another app. Nothing a
+        // script starts on its own ever leaves the browser.
+        if let url = navigationAction.request.url, let scheme = url.scheme?.lowercased(),
+           BrowserController.externalSchemes.contains(scheme) {
+            if navigationAction.navigationType == .linkActivated { confirmOpenExternally(url) }
+            decisionHandler(.cancel, preferences)
+            return
+        }
+        
         // target="_blank" and window.open() are handled by webView(_:createWebViewWith:...) so
         // popups keep their window.opener link (required by OAuth / "Sign in with..." flows).
         
@@ -257,6 +266,25 @@ extension BrowserController {
         if navigationAction.navigationType == .other, navigationAction.targetFrame?.isMainFrame ?? true {
             activeDownloads[download]?.openPageInsteadWebView = webView
         }
+    }
+    
+    static let externalSchemes: Set<String> = ["mailto", "tel", "sms", "facetime", "zoommtg", "zoomus", "msteams"]
+    
+    private func confirmOpenExternally(_ url: URL) {
+        guard let app = NSWorkspace.shared.urlForApplication(toOpen: url) else {
+            showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "NO APP FOUND", message: "Nothing on this Mac opens \(url.scheme ?? "this") links")
+            return
+        }
+        let name = FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
+        let alert = NSAlert()
+        alert.messageText = "Open in \(name)?"
+        alert.informativeText = "This page wants to open a \(url.scheme ?? "") link."
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        let open: (NSApplication.ModalResponse) -> Void = { response in
+            if response == .alertFirstButtonReturn { NSWorkspace.shared.open(url) }
+        }
+        if let window = window { alert.beginSheetModal(for: window, completionHandler: open) } else { open(alert.runModal()) }
     }
     
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
