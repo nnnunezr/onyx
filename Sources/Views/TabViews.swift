@@ -327,6 +327,21 @@ class TabItemView: NSView {
 /// Horizontal-only scroller for the tab row. A mouse wheel (vertical) scrolls it sideways, as
 /// in Safari and Chrome; trackpad swipes work natively.
 final class TabStripScrollView: NSScrollView {
+    /// In the transparent titlebar, a click on a view that can move the window becomes a window
+    /// drag. The scroll view answered hit tests for the whole tab row, so clicks on tabs and their
+    /// close buttons dragged the window instead (tabs could not be closed). Route hits to the tabs;
+    /// the empty bar around the row still drags the window.
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let doc = documentView, !isHidden else { return super.hitTest(point) }
+        let inClip = contentView.convert(point, from: superview)
+        if contentView.bounds.contains(inClip), let hit = doc.hitTest(contentView.convert(inClip, to: doc.superview)) {
+            return hit
+        }
+        return super.hitTest(point)
+    }
+
     override func scrollWheel(with event: NSEvent) {
         guard abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX),
               let doc = documentView else {
