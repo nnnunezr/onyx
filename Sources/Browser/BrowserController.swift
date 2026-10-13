@@ -62,6 +62,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     /// so Cmd+W can still close a tab stuck in a dialog loop.
     weak var activeJSDialogSheet: NSWindow?
     weak var activeJSDialogWebView: WKWebView?
+    /// When recent alert()/confirm()/prompt() dialogs were shown, to cap a page that spams them.
+    var recentJSDialogTimes: [Date] = []
     
     // Tab Management (Resilient Index Guarding)
     var tabs: [BrowserTab] = []
