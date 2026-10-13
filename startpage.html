@@ -2248,6 +2248,18 @@
   };
   window.setSearchEngine = setSearchEngine;
 
+  // On the Mac, Onyx resolves what you typed (same rules as the address bar, including the
+  // "no such site, search instead" fallback). An active engine chip is sent as its bang.
+  // Android and plain browsers still resolve here.
+  function navigationTarget(input) {
+    const trimmed = (input || '').trim();
+    if (!trimmed) return null;
+    if (OnyxBridge.isMac && window.webkit.messageHandlers.onyxNavigate) {
+      return (activeEngine && ENGINES[activeEngine]) ? ('!' + activeEngine + ' ' + trimmed) : trimmed;
+    }
+    return resolveQuery(trimmed);
+  }
+
   function resolveQuery(input) {
     const trimmed = input.trim();
     if (!trimmed) return null;
@@ -3117,7 +3129,7 @@
       setTimeout(() => { OnyxBridge.openUrl(item.url); }, 100);
     } else {
       const q = item.queryValue || item.title;
-      const url = resolveQuery(q);
+      const url = navigationTarget(q);
       if (url) {
         triggerReaction('working', 3000);
         setTimeout(() => { OnyxBridge.openUrl(url); }, 100);
@@ -3238,7 +3250,7 @@
       return;
     }
     hideSuggestions();
-    const url = resolveQuery(searchInput.value);
+    const url = navigationTarget(searchInput.value);
     if (url) {
       triggerReaction('working', 3500);
       setTimeout(() => {

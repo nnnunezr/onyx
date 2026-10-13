@@ -191,6 +191,16 @@ extension BrowserController {
         layoutTabStrip()
     }
     
+    /// Title KVO path: updates one tab's label in place instead of rebuilding every tab view
+    /// (pages that retitle often, like chats and tickers, rebuilt the whole strip each time).
+    /// Background-workspace tabs have no view and need nothing.
+    func refreshTabTitle(_ tab: BrowserTab) {
+        for case let item as TabItemView in tabStack.arrangedSubviews where item.tab.id == tab.id {
+            if item.titleText != tab.title { item.updateTitle(tab.title) }
+            return
+        }
+    }
+    
     /// Tabs share the space between the traffic lights and the right-hand controls: 220 pt each
     /// when they fit, shrinking evenly to 72 pt; past that the row scrolls and keeps the active
     /// tab in view.

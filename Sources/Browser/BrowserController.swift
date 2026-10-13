@@ -280,7 +280,7 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                 if matchingTab.id == activeTab.id {
                     self.window?.title = cleanTitle
                 }
-                renderTabs()
+                refreshTabTitle(matchingTab)
             } else if isSearchURL(matchingTab.url) {
                 let q = extractSearchQuery(from: matchingTab.url)
                 var rawTitle = webView.title ?? ""
@@ -301,7 +301,7 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                 if matchingTab.id == activeTab.id {
                     self.window?.title = displayTitle
                 }
-                renderTabs()
+                refreshTabTitle(matchingTab)
             } else if let title = webView.title, !title.isEmpty {
                 var cleanTitle = title
                 if cleanTitle.contains("DuckDuckGo") {
@@ -316,7 +316,7 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                 if matchingTab.id == activeTab.id {
                     self.window?.title = cleanTitle
                 }
-                renderTabs()
+                refreshTabTitle(matchingTab)
             }
         } else if keyPath == "URL" {
             if let url = webView.url {

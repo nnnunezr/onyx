@@ -167,6 +167,8 @@ class TabItemView: NSView {
         }
     }
     
+    var titleText: String { titleLabel.stringValue }
+    
     func updateTitle(_ title: String) {
         titleLabel.stringValue = title
     }
