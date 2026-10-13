@@ -90,6 +90,21 @@ extension BrowserController {
             reloadAfterCrash(currentTab)
         }
         
+        // The bar and the reload/stop icon belong to the tab being shown, not the one just left.
+        let reloadSymbol = currentTab.webView.isLoading ? "xmark" : "arrow.clockwise"
+        if let img = NSImage(systemSymbolName: reloadSymbol, accessibilityDescription: currentTab.webView.isLoading ? "Stop" : "Reload") {
+            reloadButton.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: currentTab.webView.isLoading ? 11 : 12, weight: .medium))
+        }
+        if currentTab.webView.isLoading, let parent = progressBar.superview {
+            progressBar.isHidden = false
+            progressBar.alphaValue = 1.0
+            progressConstraint.constant = CGFloat(currentTab.webView.estimatedProgress) * parent.bounds.width
+        } else {
+            progressBar.isHidden = true
+            progressBar.alphaValue = 1.0
+            progressConstraint.constant = 0
+        }
+        
         if currentTab.webView.isLoading {
             let isSearch = isSearchURL(currentTab.url)
             if isSearch {

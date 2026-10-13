@@ -212,7 +212,6 @@ extension BrowserController {
         progressBar.layer?.shadowRadius = 3
         progressBar.layer?.shadowOffset = .zero
         progressBar.isHidden = true
-        bookmarksBar.addSubview(progressBar)
         
         // 4. Web Content Container View
         webContainerView = NSView()
@@ -220,6 +219,8 @@ extension BrowserController {
         webContainerView.wantsLayer = true
         webContainerView.layer?.backgroundColor = NSColor(red: 7/255.0, green: 7/255.0, blue: 9/255.0, alpha: 1.0).cgColor
         contentView.addSubview(webContainerView)
+        // Above the page, not inside the bookmarks bar, so it still shows when that bar is hidden.
+        contentView.addSubview(progressBar)
         
         // Directional Edge Glow Shimmer View
         edgeGlowView = DirectionalEdgeGlowView()
@@ -322,9 +323,9 @@ extension BrowserController {
             manageBookmarksBtn.trailingAnchor.constraint(equalTo: bookmarksBar.trailingAnchor, constant: -12),
             manageBookmarksBtn.centerYAnchor.constraint(equalTo: bookmarksBar.centerYAnchor),
             
-            progressBar.bottomAnchor.constraint(equalTo: bookmarksBar.bottomAnchor),
-            progressBar.leadingAnchor.constraint(equalTo: bookmarksBar.leadingAnchor),
-            progressBar.heightAnchor.constraint(equalToConstant: 1.5),
+            progressBar.topAnchor.constraint(equalTo: webContainerView.topAnchor),
+            progressBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            progressBar.heightAnchor.constraint(equalToConstant: 2),
             progressConstraint,
             
             // Web Content Container
