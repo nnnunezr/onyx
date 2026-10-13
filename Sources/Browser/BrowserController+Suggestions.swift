@@ -213,7 +213,10 @@ extension BrowserController {
         
         // 2. Fetch live suggestions asynchronously
         activeSuggestionTask?.cancel()
-        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+        // .urlQueryAllowed leaves & + # = unescaped, which would cut "c++" or "a&b" short on the server.
+        var queryChars = CharacterSet.urlQueryAllowed
+        queryChars.remove(charactersIn: "&+=#?")
+        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: queryChars),
               let fetchURL = URL(string: "https://duckduckgo.com/ac/?q=\(encoded)&type=list") else { return }
         
         let task = URLSession.shared.dataTask(with: fetchURL) { [weak self] data, response, error in
