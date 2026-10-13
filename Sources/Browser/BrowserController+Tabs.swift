@@ -188,6 +188,37 @@ extension BrowserController {
             }
             tabStack.addArrangedSubview(tabView)
         }
+        layoutTabStrip()
+    }
+    
+    /// Tabs share the space between the traffic lights and the right-hand controls: 220 pt each
+    /// when they fit, shrinking evenly to 72 pt; past that the row scrolls and keeps the active
+    /// tab in view.
+    func layoutTabStrip() {
+        guard let tabBar = tabBar, let stack = tabStack, let strip = tabScrollView else { return }
+        let maxWidth: CGFloat = 220, minWidth: CGFloat = 72
+        let leading: CGFloat = 78, reservedTrailing: CGFloat = 120, newTabSpace: CGFloat = 4 + 24
+        let available = max(minWidth, tabBar.bounds.width - leading - reservedTrailing - newTabSpace)
+        let count = CGFloat(max(stack.arrangedSubviews.count, 1))
+        let spacing = stack.spacing * (count - 1)
+        let tabWidth = min(maxWidth, max(minWidth, ((available - spacing) / count).rounded(.down)))
+        for view in stack.arrangedSubviews {
+            if let c = view.constraints.first(where: { $0.identifier == "onyxTabWidth" }) {
+                c.constant = tabWidth
+            } else {
+                let c = view.widthAnchor.constraint(equalToConstant: tabWidth)
+                c.identifier = "onyxTabWidth"
+                c.isActive = true
+            }
+        }
+        let contentWidth = tabWidth * count + spacing
+        tabStripWidthConstraint.constant = min(contentWidth, available)
+        stack.layoutSubtreeIfNeeded()
+        strip.layoutSubtreeIfNeeded()
+        if activeTabIndex < stack.arrangedSubviews.count {
+            let active = stack.arrangedSubviews[activeTabIndex]
+            active.scrollToVisible(active.bounds.insetBy(dx: -8, dy: 0))
+        }
     }
 
     func duplicateTab(_ tab: BrowserTab) {

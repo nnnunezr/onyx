@@ -120,8 +120,8 @@ class TabItemView: NSView {
         
         NSLayoutConstraint.activate([
             self.heightAnchor.constraint(equalToConstant: 28),
-            self.widthAnchor.constraint(greaterThanOrEqualToConstant: 110),
-            self.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
+            // Width is set by BrowserController.layoutTabStrip(). A required minimum here (it was
+            // 110 pt) made every extra tab push the window wider than the screen.
             
             iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -313,4 +313,22 @@ class TabItemView: NSView {
     @objc private func copyURLAction() { onCopyURL?(tab) }
     @objc private func closeOthersAction() { onCloseOthers?(tab) }
     @objc private func closeTabAction() { onClose?(tab) }
+}
+
+// MARK: - Tab strip scroll view
+/// Horizontal-only scroller for the tab row. A mouse wheel (vertical) scrolls it sideways, as
+/// in Safari and Chrome; trackpad swipes work natively.
+final class TabStripScrollView: NSScrollView {
+    override func scrollWheel(with event: NSEvent) {
+        guard abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX),
+              let doc = documentView else {
+            return super.scrollWheel(with: event)
+        }
+        let clip = contentView
+        let step = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 12
+        var origin = clip.bounds.origin
+        origin.x = max(0, min(origin.x - step, doc.frame.width - clip.bounds.width))
+        clip.setBoundsOrigin(origin)
+        reflectScrolledClipView(clip)
+    }
 }

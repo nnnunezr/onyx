@@ -25,7 +25,19 @@ extension BrowserController {
         tabStack.orientation = .horizontal
         tabStack.spacing = 6
         tabStack.alignment = .centerY
-        tabBar.addSubview(tabStack)
+        
+        // The tab row scrolls horizontally once tabs reach their minimum width, so the number of
+        // tabs never changes the window's minimum size.
+        tabScrollView = TabStripScrollView()
+        tabScrollView.translatesAutoresizingMaskIntoConstraints = false
+        tabScrollView.drawsBackground = false
+        tabScrollView.hasHorizontalScroller = false
+        tabScrollView.hasVerticalScroller = false
+        tabScrollView.horizontalScrollElasticity = .allowed
+        tabScrollView.verticalScrollElasticity = .none
+        tabScrollView.contentView.drawsBackground = false
+        tabScrollView.documentView = tabStack
+        tabBar.addSubview(tabScrollView)
         
         newTabBtn = NavIconButton(iconName: "plus", tooltip: "New Tab (⌘T)", target: self, action: #selector(newTabClicked), size: 24)
         newTabBtn.layer?.cornerRadius = 12
@@ -224,6 +236,13 @@ extension BrowserController {
         bookmarksBarHeightConstraint = bookmarksBar.heightAnchor.constraint(equalToConstant: initialBookmarksVisible ? 28 : 0)
         bookmarksBar.alphaValue = initialBookmarksVisible ? 1.0 : 0.0
         
+        tabStripWidthConstraint = tabScrollView.widthAnchor.constraint(equalToConstant: 0)
+        tabStripWidthConstraint.isActive = true
+        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: tabBar, queue: .main) { [weak self] _ in
+            self?.layoutTabStrip()
+        }
+        tabBar.postsFrameChangedNotifications = true
+        
         NSLayoutConstraint.activate([
             // Row 1: Titlebar Tab Bar (38px, starts at x: 78 to clear macOS traffic lights at 12..70)
             tabBar.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -236,11 +255,14 @@ extension BrowserController {
             tabSeparator.trailingAnchor.constraint(equalTo: tabBar.trailingAnchor),
             tabSeparator.heightAnchor.constraint(equalToConstant: 1),
             
-            tabStack.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor, constant: 78),
-            tabStack.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
-            tabStack.trailingAnchor.constraint(lessThanOrEqualTo: tabBar.trailingAnchor, constant: -120),
+            tabScrollView.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor, constant: 78),
+            tabScrollView.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
+            tabScrollView.heightAnchor.constraint(equalToConstant: 32),
+            tabStack.leadingAnchor.constraint(equalTo: tabScrollView.contentView.leadingAnchor),
+            tabStack.topAnchor.constraint(equalTo: tabScrollView.contentView.topAnchor),
+            tabStack.heightAnchor.constraint(equalTo: tabScrollView.contentView.heightAnchor),
             
-            newTabBtn.leadingAnchor.constraint(equalTo: tabStack.trailingAnchor, constant: 4),
+            newTabBtn.leadingAnchor.constraint(equalTo: tabScrollView.trailingAnchor, constant: 4),
             newTabBtn.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
             
             // Row 2: Toolbar (40px)

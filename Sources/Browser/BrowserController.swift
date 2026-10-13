@@ -90,6 +90,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     // Tab Bar
     var tabBar: TabBarView!
     var tabStack: NSStackView!
+    var tabScrollView: TabStripScrollView!
+    var tabStripWidthConstraint: NSLayoutConstraint!
     var newTabBtn: NavIconButton!
     var suggestedTabsBtn: NavIconButton!
     var suggestedPopover: NSPopover?
