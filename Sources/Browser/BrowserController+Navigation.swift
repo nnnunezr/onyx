@@ -161,6 +161,7 @@ extension BrowserController {
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.16
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.searchContainer.layer?.borderColor = borderColor
             self.searchContainer.layer?.shadowColor = shadowColor
@@ -415,16 +416,10 @@ extension BrowserController {
     
     // MARK: - Navigation Transitions & Creative Animations
     func animateButtonBounce(_ button: NSButton, direction: CGFloat) {
-        let spring = CAKeyframeAnimation(keyPath: "transform")
-        let t0 = CATransform3DIdentity
-        let t1 = CATransform3DTranslate(CATransform3DMakeScale(0.88, 0.88, 1.0), direction * 3.0, 0, 0)
-        let t2 = CATransform3DTranslate(CATransform3DMakeScale(1.06, 1.06, 1.0), direction * -1.0, 0, 0)
-        let t3 = CATransform3DIdentity
-        spring.values = [NSValue(caTransform3D: t0), NSValue(caTransform3D: t1), NSValue(caTransform3D: t2), NSValue(caTransform3D: t3)]
-        spring.keyTimes = [0.0, 0.35, 0.70, 1.0]
-        spring.duration = 0.26
-        spring.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
-        button.layer?.add(spring, forKey: "buttonBounce")
+        // Squash and nudge around the button's center (it used to scale from the corner).
+        Motion.centerScale(button.layer, scales: [1.0, 0.88, 1.06, 1.0], shifts: [0, direction * 3.0, direction * -1.0, 0],
+                           keyTimes: [0.0, 0.35, 0.70, 1.0], duration: 0.26,
+                           timing: CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0), key: "buttonBounce")
     }
     
     func animateNavigationTransition(direction: NavigationDirection) {

@@ -49,6 +49,7 @@ class NavIconButton: NSButton {
         guard isEnabled else { return }
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
             self.contentTintColor = NSColor.white
         }
@@ -57,12 +58,18 @@ class NavIconButton: NSButton {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
             self.contentTintColor = self.isEnabled ? NSColor(white: 0.82, alpha: 1.0) : NSColor(white: 0.35, alpha: 1.0)
         }
     }
     
     override func mouseDown(with event: NSEvent) {
+        // Press feedback: a quick centered dip that springs back.
+        if isEnabled {
+            Motion.centerScale(layer, scales: [1.0, 0.94, 1.02, 1.0], keyTimes: [0, 0.35, 0.75, 1.0], duration: 0.22,
+                               timing: CAMediaTimingFunction(controlPoints: 0.25, 1.0, 0.5, 1.0), key: "press")
+        }
         if let onClick = onClick {
             onClick()
         } else {

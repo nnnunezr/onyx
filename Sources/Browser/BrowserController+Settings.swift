@@ -87,6 +87,19 @@ extension BrowserController {
                 setLiveSearchEngine(engine)
             }
             
+        case "setPins":
+            // Start page "Pinned" grid. Validated again here: only http(s) addresses, short titles.
+            guard let raw = dict["pins"] as? [[String: Any]] else { break }
+            let clean: [[String: String]] = raw.prefix(24).compactMap { pin in
+                guard let title = (pin["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty,
+                      let urlStr = pin["url"] as? String, let url = URL(string: urlStr),
+                      ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+                return ["title": String(title.prefix(40)), "url": url.absoluteString]
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: clean) {
+                defaults.set(data, forKey: "OnyxStartPins")
+            }
+            
         case "setStartup":
             if let mode = dict["mode"] as? String, ["startpage", "restore", "blank"].contains(mode) {
                 defaults.set(mode, forKey: "OnyxStartupBehavior")
@@ -152,6 +165,13 @@ extension BrowserController {
         if let webView = webView {
             sendSettingsPayload(to: webView)
         }
+    }
+    
+    /// Pushes saved pins to the start page; nothing saved yet leaves its built-in defaults.
+    func startPagePinsScript() -> String? {
+        guard let data = UserDefaults.standard.data(forKey: "OnyxStartPins"),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return "if (window.setPins) window.setPins(\(json));"
     }
     
     func startPageNewsScript() -> String {

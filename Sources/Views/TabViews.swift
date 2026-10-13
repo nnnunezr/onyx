@@ -40,6 +40,7 @@ class TabCloseButton: NSButton {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.10
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.15).cgColor
             self.contentTintColor = NSColor.white
         }
@@ -48,6 +49,7 @@ class TabCloseButton: NSButton {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.10
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
             self.contentTintColor = NSColor(white: 0.65, alpha: 1.0)
         }
@@ -239,6 +241,7 @@ class TabItemView: NSView {
         isHovered = true
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.updateAppearance()
         }
     }
@@ -247,6 +250,7 @@ class TabItemView: NSView {
         isHovered = false
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.updateAppearance()
         }
     }
@@ -263,6 +267,7 @@ class TabItemView: NSView {
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.08
+            Motion.prepare(ctx)
             self.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.985, y: 0.985))
         }
         onSelect?(tab)
@@ -271,6 +276,7 @@ class TabItemView: NSView {
     override func mouseUp(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.setAffineTransform(.identity)
         }
     }

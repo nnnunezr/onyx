@@ -179,20 +179,26 @@ class DownloadsNavButton: NSButton {
         }
     }
     
+    /// Progress arrives every 250 ms; the ring glides between ticks instead of stepping.
     func updateProgressRing() {
+        let target = CGFloat(max(0.04, min(1.0, progress)))
+        let current = progressLayer.presentation()?.strokeEnd ?? progressLayer.strokeEnd
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        progressLayer.strokeEnd = CGFloat(max(0.04, min(1.0, progress)))
+        progressLayer.strokeEnd = target
         CATransaction.commit()
+        guard !Motion.reduceMotion, target > current else { return }
+        let glide = CABasicAnimation(keyPath: "strokeEnd")
+        glide.fromValue = current
+        glide.toValue = target
+        glide.duration = 0.25
+        glide.timingFunction = CAMediaTimingFunction(name: .linear)
+        progressLayer.add(glide, forKey: "glide")
     }
     
     func triggerBounce() {
-        let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
-        bounce.values = [1.0, 1.28, 0.92, 1.08, 1.0]
-        bounce.keyTimes = [0, 0.3, 0.55, 0.8, 1.0]
-        bounce.duration = 0.38
-        bounce.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        layer?.add(bounce, forKey: "bounce")
+        Motion.centerScale(layer, scales: [1.0, 1.28, 0.92, 1.08, 1.0], keyTimes: [0, 0.3, 0.55, 0.8, 1.0],
+                           duration: 0.38, timing: CAMediaTimingFunction(name: .easeInEaseOut), key: "bounce")
     }
     
     override func updateTrackingAreas() {
@@ -205,6 +211,7 @@ class DownloadsNavButton: NSButton {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
             self.iconView.contentTintColor = NSColor.white
         }
@@ -213,6 +220,7 @@ class DownloadsNavButton: NSButton {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
             self.updateVisuals()
         }
@@ -410,6 +418,7 @@ class OnyxDownloadRowView: NSView {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.05).cgColor
         }
     }
@@ -417,6 +426,7 @@ class OnyxDownloadRowView: NSView {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
         }
     }
@@ -536,6 +546,7 @@ class DownloadNotificationHUD: NSView {
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.35
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.animator().alphaValue = 1.0
             self.layer?.transform = CATransform3DIdentity
@@ -549,6 +560,7 @@ class DownloadNotificationHUD: NSView {
     func dismiss() {
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.25
+            Motion.prepare(ctx)
             self.animator().alphaValue = 0
         }, completionHandler: {
             self.removeFromSuperview()

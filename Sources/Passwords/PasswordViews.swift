@@ -309,6 +309,7 @@ class OnyxPasswordRowView: NSView {
         super.mouseEntered(with: event)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = self.isCurrentSite ? NSColor(white: 1.0, alpha: 0.15).cgColor : NSColor(white: 1.0, alpha: 0.08).cgColor
             self.layer?.borderColor = self.isCurrentSite ? NSColor(white: 1.0, alpha: 0.25).cgColor : NSColor(white: 1.0, alpha: 0.16).cgColor
         }
@@ -318,6 +319,7 @@ class OnyxPasswordRowView: NSView {
         super.mouseExited(with: event)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = self.isCurrentSite ? NSColor(white: 1.0, alpha: 0.10).cgColor : NSColor.clear.cgColor
             self.layer?.borderColor = self.isCurrentSite ? NSColor(white: 1.0, alpha: 0.20).cgColor : NSColor.clear.cgColor
         }
@@ -510,6 +512,7 @@ class OnyxSavePasswordHUD: NSVisualEffectView {
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.32
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.animator().alphaValue = 1.0
             self.layer?.transform = CATransform3DIdentity
@@ -523,6 +526,7 @@ class OnyxSavePasswordHUD: NSVisualEffectView {
     func dismiss() {
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.22
+            Motion.prepare(ctx)
             self.animator().alphaValue = 0
         }, completionHandler: {
             self.removeFromSuperview()

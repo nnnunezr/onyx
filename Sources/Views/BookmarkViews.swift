@@ -64,6 +64,7 @@ class BookmarkDeleteIconButton: NSControl {
         isHovered = true
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.08
+            Motion.prepare(ctx)
             self.updateState()
         }
     }
@@ -73,6 +74,7 @@ class BookmarkDeleteIconButton: NSControl {
         isPressed = false
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.08
+            Motion.prepare(ctx)
             self.updateState()
         }
     }
@@ -223,6 +225,7 @@ class BookmarkButton: NSControl {
         }
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.10
+            Motion.prepare(ctx)
             ctx.allowsImplicitAnimation = true
             if hovered {
                 self.deleteButton.isHidden = false
@@ -289,6 +292,7 @@ class BookmarkButton: NSControl {
         isPressed = true
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.06
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.15).cgColor
         }
     }
@@ -298,6 +302,7 @@ class BookmarkButton: NSControl {
         isPressed = false
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.updateAppearance()
         }
         if wasPressed {
@@ -430,6 +435,7 @@ class ManagerActionButton: NSButton {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.10
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = hoverBg.cgColor
             self.contentTintColor = hoverTint
         }
@@ -438,6 +444,7 @@ class ManagerActionButton: NSButton {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.10
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
             self.contentTintColor = normalTint
         }

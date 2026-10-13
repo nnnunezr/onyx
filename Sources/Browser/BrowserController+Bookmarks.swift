@@ -27,6 +27,7 @@ extension BrowserController {
         guard show != currentlyVisible else { return }
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.18
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.bookmarksBarHeightConstraint.animator().constant = show ? 28 : 0
             self.bookmarksBar.animator().alphaValue = show ? 1.0 : 0.0

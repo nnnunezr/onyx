@@ -154,6 +154,7 @@ class ProfilePillButton: NSButton {
         isHovered = true
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.22
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.widthConstraint?.animator().constant = self.expandedWidth
             self.titleLbl.animator().alphaValue = 1.0
@@ -168,6 +169,7 @@ class ProfilePillButton: NSButton {
         isHovered = false
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.18
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.widthConstraint?.animator().constant = self.collapsedWidth
             self.titleLbl.animator().alphaValue = 0.0
@@ -292,6 +294,7 @@ class ProfileRowView: NSView {
         if !isActive {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.12
+                Motion.prepare(ctx)
                 self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.05).cgColor
             }
         }
@@ -301,6 +304,7 @@ class ProfileRowView: NSView {
         if !isActive {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.12
+                Motion.prepare(ctx)
                 self.layer?.backgroundColor = NSColor.clear.cgColor
             }
         }
@@ -364,6 +368,7 @@ class ProfileActionRowView: NSView {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.05).cgColor
         }
     }
@@ -371,6 +376,7 @@ class ProfileActionRowView: NSView {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
         }
     }

@@ -107,6 +107,7 @@ class SuggestedWorkspaceRowView: NSView {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
         }
     }
@@ -114,6 +115,7 @@ class SuggestedWorkspaceRowView: NSView {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
         }
     }
@@ -209,6 +211,7 @@ class SuggestedNewsRowView: NSView {
     override func mouseEntered(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
         }
     }
@@ -216,6 +219,7 @@ class SuggestedNewsRowView: NSView {
     override func mouseExited(with event: NSEvent) {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             self.layer?.backgroundColor = NSColor.clear.cgColor
         }
     }

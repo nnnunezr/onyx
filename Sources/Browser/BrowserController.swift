@@ -239,15 +239,19 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
             if matchingTab.id == activeTab.id {
                 let progress = webView.estimatedProgress
                 if let parentBar = progressBar.superview {
-                    let targetWidth = CGFloat(progress) * parentBar.bounds.width
+                    var targetWidth = CGFloat(progress) * parentBar.bounds.width
+                    // Never move backward mid-load (the start trickle may be ahead of WebKit).
+                    if progress < 1.0 { targetWidth = max(targetWidth, self.progressConstraint.constant) }
                     NSAnimationContext.runAnimationGroup { ctx in
                         ctx.duration = 0.18
+                        Motion.prepare(ctx)
                         ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
                         self.progressConstraint.animator().constant = targetWidth
                     }
                     if progress >= 1.0 {
                         NSAnimationContext.runAnimationGroup({ ctx in
                             ctx.duration = 0.25
+                            Motion.prepare(ctx)
                             self.progressBar.animator().alphaValue = 0.0
                         }, completionHandler: {
                             self.progressBar.isHidden = true

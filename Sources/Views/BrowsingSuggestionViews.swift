@@ -125,6 +125,7 @@ class BrowsingSuggestionRowView: NSView {
     private func updateHighlight() {
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.12
+            Motion.prepare(ctx)
             layer?.backgroundColor = isSelected ? NSColor(white: 1.0, alpha: 0.08).cgColor : NSColor.clear.cgColor
             titleLabel.textColor = isSelected ? NSColor.white : NSColor(white: 0.92, alpha: 1.0)
             iconView.contentTintColor = isSelected ? NSColor.white : NSColor(white: 0.65, alpha: 1.0)

@@ -222,6 +222,7 @@ extension BrowserController {
             override func mouseEntered(with event: NSEvent) {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.12
+                    Motion.prepare(ctx)
                     self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.08).cgColor
                     self.layer?.borderColor = NSColor(white: 1.0, alpha: 0.16).cgColor
                 }
@@ -230,6 +231,7 @@ extension BrowserController {
             override func mouseExited(with event: NSEvent) {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.12
+                    Motion.prepare(ctx)
                     self.layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.02).cgColor
                     self.layer?.borderColor = NSColor(white: 1.0, alpha: 0.06).cgColor
                 }

@@ -7,6 +7,22 @@ extension BrowserController {
         if webView == activeWebView {
             progressBar.isHidden = false
             progressBar.alphaValue = 1.0
+            progressConstraint.constant = 0
+            // Slow first byte: after 300 ms with little progress, ease the bar toward 30% so the
+            // page visibly is loading. Real progress takes over as it arrives.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self, weak webView] in
+                guard let self = self, let webView = webView, webView == self.activeWebView,
+                      webView.isLoading, webView.estimatedProgress < 0.15,
+                      let parent = self.progressBar.superview else { return }
+                let trickle = parent.bounds.width * 0.3
+                guard self.progressConstraint.constant < trickle else { return }
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 1.5
+                    Motion.prepare(ctx)
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    self.progressConstraint.animator().constant = trickle
+                }
+            }
             if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Stop") {
                 reloadButton.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 11, weight: .medium))
             }
@@ -54,6 +70,9 @@ extension BrowserController {
             let engineJS = "if (window.setSearchEngine) window.setSearchEngine(\(JS.string(SearchEngines.current)));"
             webView.evaluateJavaScript(engineJS, completionHandler: nil)
             webView.evaluateJavaScript(startPageNewsScript(), completionHandler: nil)
+            if let pinsJS = startPagePinsScript() {
+                webView.evaluateJavaScript(pinsJS, completionHandler: nil)
+            }
         }
         scheduleSessionSave()
         

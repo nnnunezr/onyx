@@ -83,6 +83,7 @@ class OnyxToastHUD: NSView {
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.28
+            Motion.prepare(ctx)
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
             self.animator().alphaValue = 1.0
             self.layer?.transform = CATransform3DIdentity
@@ -96,6 +97,7 @@ class OnyxToastHUD: NSView {
     func dismiss() {
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.22
+            Motion.prepare(ctx)
             self.animator().alphaValue = 0
         }, completionHandler: {
             self.removeFromSuperview()
