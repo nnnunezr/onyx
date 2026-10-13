@@ -310,6 +310,20 @@ extension BrowserController {
         
         profiles.removeAll(where: { $0.id == id })
         removeSavedSession(forWorkspace: id)
+        // Its background tabs still have KVO observers and delegates pointing here; releasing
+        // the web views with those attached is a KVO crash waiting for the deallocation.
+        for tab in profileTabs[id] ?? [] {
+            if tab.isObserved {
+                tab.webView.removeObserver(self, forKeyPath: "estimatedProgress")
+                tab.webView.removeObserver(self, forKeyPath: "title")
+                tab.webView.removeObserver(self, forKeyPath: "URL")
+                tab.isObserved = false
+            }
+            tab.webView.navigationDelegate = nil
+            tab.webView.uiDelegate = nil
+            tab.webView.pauseAllMediaPlayback(completionHandler: nil)
+            tab.webView.stopLoading()
+        }
         profileTabs.removeValue(forKey: id)
         profileActiveIndices.removeValue(forKey: id)
         profileConfigurations.removeValue(forKey: id)
