@@ -3430,12 +3430,16 @@
     }
     return out;
   }
+  // Always kept in localStorage too: a backup if a native save is ever lost (for example the
+  // start page running against an Onyx binary older than this page).
   function savePins() {
+    try { localStorage.setItem('onyx-pins', JSON.stringify(pins)); } catch (e) {}
     if (OnyxBridge.isMac && window.webkit.messageHandlers.onyxSettings) {
       window.webkit.messageHandlers.onyxSettings.postMessage({ action: 'setPins', pins: pins });
-    } else {
-      try { localStorage.setItem('onyx-pins', JSON.stringify(pins)); } catch (e) {}
     }
+  }
+  function localPins() {
+    try { return sanitizePins(JSON.parse(localStorage.getItem('onyx-pins') || 'null')); } catch (e) { return null; }
   }
 
   function renderPins() {
@@ -3576,17 +3580,23 @@
     if (e.key === 'Escape') { e.stopPropagation(); closePinForm(); }
   });
 
-  // Onyx (macOS) pushes the saved pins after load; null means "never edited", keep defaults.
+  // Onyx (macOS) pushes its saved pins after every load, or null when it has none. Null plus a
+  // local backup means the native copy was lost: use the backup and hand it back to Onyx.
   window.setPins = function(list) {
     const clean = sanitizePins(list);
-    if (clean) { pins = clean; renderPins(); }
+    if (clean) {
+      pins = clean;
+      try { localStorage.setItem('onyx-pins', JSON.stringify(pins)); } catch (e) {}
+    } else {
+      const backup = localPins();
+      if (!backup) return;
+      pins = backup;
+      savePins();
+    }
+    renderPins();
   };
-  if (!(OnyxBridge.isMac && window.webkit.messageHandlers.onyxSettings)) {
-    try {
-      const stored = sanitizePins(JSON.parse(localStorage.getItem('onyx-pins') || 'null'));
-      if (stored) pins = stored;
-    } catch (e) {}
-  }
+  const initialLocal = localPins();
+  if (initialLocal) pins = initialLocal;
   renderPins();
 
   // Workspace card clicks

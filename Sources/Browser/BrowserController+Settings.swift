@@ -98,6 +98,9 @@ extension BrowserController {
             }
             if let data = try? JSONSerialization.data(withJSONObject: clean) {
                 defaults.set(data, forKey: "OnyxStartPins")
+                OnyxLog.persistence.notice("saved \(clean.count, privacy: .public) start page pins")
+            } else {
+                OnyxLog.persistence.error("could not encode start page pins")
             }
             
         case "setStartup":
@@ -168,9 +171,9 @@ extension BrowserController {
     }
     
     /// Pushes saved pins to the start page; nothing saved yet leaves its built-in defaults.
+    /// Always sent (null when nothing is saved) so the page can restore its local backup.
     func startPagePinsScript() -> String? {
-        guard let data = UserDefaults.standard.data(forKey: "OnyxStartPins"),
-              let json = String(data: data, encoding: .utf8) else { return nil }
+        let json = UserDefaults.standard.data(forKey: "OnyxStartPins").flatMap { String(data: $0, encoding: .utf8) } ?? "null"
         return "if (window.setPins) window.setPins(\(json));"
     }
     
