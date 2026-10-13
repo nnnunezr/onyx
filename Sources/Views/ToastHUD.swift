@@ -4,6 +4,10 @@ import UniformTypeIdentifiers
 
 // MARK: - Universal Onyx Toast HUD
 class OnyxToastHUD: NSView {
+    /// Purely informational: clicks go through to the page underneath (it can sit over a
+    /// trading page's buttons for several seconds).
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
     init(iconName: String, title: String, message: String) {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false

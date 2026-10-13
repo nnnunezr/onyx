@@ -16,6 +16,9 @@ class BrowserTab: NSObject {
     var needsReload: Bool = false
     /// Recent WebContent crashes, used to stop auto-reloading a page that keeps crashing.
     var recentCrashes: [Date] = []
+    /// Address-bar input Onyx guessed was a site (`node.js` -> https://node.js). If that host does
+    /// not exist, the input is searched instead.
+    var typedGuess: (input: String, url: URL)?
     
     init(url: URL, configuration: WKWebViewConfiguration) {
         self.url = url

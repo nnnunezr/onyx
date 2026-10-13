@@ -44,6 +44,9 @@ extension BrowserController {
         let config = WKWebViewConfiguration()
         config.allowsAirPlayForMediaPlayback = true
         config.preferences.isElementFullscreenEnabled = true
+        // macOS defaults this to true: any script could open tabs with no click. Popups opened
+        // from a click (OAuth "Sign in with Google", target=_blank) still work.
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
         config.suppressesIncrementalRendering = false
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.websiteDataStore = websiteDataStore(for: profile)

@@ -7,6 +7,7 @@ OUT="$(mktemp -d)/onyx-tests"
 swiftc -target arm64-apple-macos14.0 -sdk "$(xcrun --show-sdk-path)" \
     "$DIR/Sources/Core/URLClassifier.swift" \
     "$DIR/Sources/Core/DownloadPolicy.swift" \
+    "$DIR/Sources/Support/ErrorPage.swift" \
     "$DIR/Sources/Passwords/PasswordVault.swift" \
     "$DIR/Sources/Support/JavaScript.swift" \
     "$DIR/Sources/Support/Persistence.swift" \

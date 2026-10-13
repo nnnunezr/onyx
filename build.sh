@@ -57,6 +57,10 @@ cat <<EOF > "$CONTENTS/Info.plist"
     <string>14.0</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Websites you allow, such as Google Meet or Zoom, can use your camera.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Websites you allow, such as Google Meet or Zoom, can use your microphone.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSRequiresAquaSystemAppearance</key>

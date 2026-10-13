@@ -285,8 +285,17 @@ extension BrowserController {
         }
         
         let targetURL = resolveQuery(query)
+        noteTypedGuess(tab: activeTab, input: query, url: targetURL)
         loadURL(targetURL)
         window?.makeFirstResponder(activeWebView)
+    }
+    
+    /// Remembers input that had no scheme but was treated as an address, so a failed lookup can
+    /// fall back to search.
+    func noteTypedGuess(tab: BrowserTab, input: String, url: URL) {
+        let typedScheme = input.contains("://")
+        let isWeb = ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        tab.typedGuess = (!typedScheme && isWeb && !isSearchURL(url) && !isResearchURL(url)) ? (input, url) : nil
     }
     
     func resolveQuery(_ rawInput: String) -> URL {

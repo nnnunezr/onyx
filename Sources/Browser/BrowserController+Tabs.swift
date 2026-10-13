@@ -51,6 +51,7 @@ extension BrowserController {
     
     func selectTab(at index: Int) {
         guard index >= 0 && index < tabs.count else { return }
+        hideFindBar(restoreFocus: false)
         
         // If the outgoing page (or nothing) had focus, hand focus to the incoming page so the
         // keyboard keeps working after a switch. Leave it alone while the omnibox is being edited.

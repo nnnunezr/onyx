@@ -204,6 +204,7 @@ extension BrowserController {
                     // The start page may only send the tab to the web or back to Onyx pages.
                     guard ["http", "https"].contains(target.scheme?.lowercased() ?? "") || isInternalPageURL(target) else { return }
                     if let tab = tabs.first(where: { $0.webView == message.webView }) {
+                        noteTypedGuess(tab: tab, input: urlStr, url: target)
                         loadTabURL(tab: tab, url: target)
                     } else {
                         loadURL(target)

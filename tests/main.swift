@@ -57,6 +57,10 @@ check(profilesOld.problem == nil && profilesOld.items.first?.colorHex == "#FFFFF
 check(Persistence.loadList(BookmarkItem.self, key: "missingKey", defaults: d).problem == nil, "missing key is not a problem")
 check(DP.decideResponse(mimeType: "text/html; charset=utf-8", statusCode: 200, contentDisposition: nil, isMainFrame: true, canShowMIMEType: false) == .allow, "html page never downloads (youtube.com)")
 check(DP.decideResponse(mimeType: "text/html", statusCode: 200, contentDisposition: "attachment; filename=r.html", isMainFrame: true, canShowMIMEType: true) == .download, "html attachment still downloads")
+// Error page
+check(ErrorPage.escape("<a href=\"x\">&'") == "&lt;a href=&quot;x&quot;&gt;&amp;&#39;", "error page escapes HTML")
+check(ErrorPage.content(domain: NSURLErrorDomain, code: NSURLErrorCannotFindHost, host: "node.js", fallback: "").title == "Can't find node.js", "cannot find host title")
+check(!ErrorPage.html(ErrorPage.content(domain: "x", code: 1, host: "<b>", fallback: "<script>"), failedURL: u("https://a.com/?q=<x>"), searchURL: nil).contains("<script>"), "error page never injects markup")
 // Download policy: attachments and unrenderable main-frame responses are saved, not dropped
 typealias DP = DownloadPolicy
 check(DP.isAttachment("attachment; filename=\"a.pdf\""), "attachment with filename")

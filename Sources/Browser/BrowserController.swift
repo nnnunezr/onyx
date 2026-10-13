@@ -20,6 +20,10 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     var passwordRowsStack: NSStackView?
     var passwordCountLabel: NSTextField?
     var activeToastHUD: OnyxToastHUD?
+    var findBar: OnyxFindBar?
+    var findMatchIndex = 0
+    var findMatchCount = 0
+    var lastFindQuery = ""
     var activeSavePromptHUD: OnyxSavePasswordHUD?
     
     // Toolbar Extensions & Pinning System

@@ -151,6 +151,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(copyItem)
         editMenu.addItem(pasteItem)
         editMenu.addItem(selectAllItem)
+        editMenu.addItem(NSMenuItem.separator())
+        let findMenuItem = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
+        let findMenu = NSMenu(title: "Find")
+        let findItem = NSMenuItem(title: "Find…", action: #selector(BrowserController.menuFind), keyEquivalent: "f")
+        findItem.target = controller
+        let findNextItem = NSMenuItem(title: "Find Next", action: #selector(BrowserController.menuFindNext), keyEquivalent: "g")
+        findNextItem.target = controller
+        let findPrevItem = NSMenuItem(title: "Find Previous", action: #selector(BrowserController.menuFindPrevious), keyEquivalent: "G")
+        findPrevItem.target = controller
+        findMenu.addItem(findItem)
+        findMenu.addItem(findNextItem)
+        findMenu.addItem(findPrevItem)
+        findMenuItem.submenu = findMenu
+        editMenu.addItem(findMenuItem)
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
         

@@ -24,6 +24,13 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        // The guessed address loaded, so a later failure on this tab is not a typo to search.
+        tabs.first(where: { $0.webView == webView })?.typedGuess = nil
+        if webView == activeWebView, findBar != nil {
+            findMatchIndex = 0
+            findMatchCount = 0
+            findBar?.setStatus("", notFound: false)
+        }
         if let matchingTab = tabs.first(where: { $0.webView == webView }),
            let host = (webView.url ?? matchingTab.url).host, !(webView.url ?? matchingTab.url).isFileURL {
             if let cached = FaviconManager.shared.cachedFavicon(for: host) {
@@ -145,6 +152,41 @@ extension BrowserController {
             if let img = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload") {
                 reloadButton.image = img.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
             }
+        }
+        if !isCancellation {
+            handleLoadFailure(in: webView, error: nsErr)
+        }
+    }
+    
+    /// A page that never loaded: search instead for a mistaken typed guess, otherwise show an
+    /// error page that keeps the failed address (so Reload and Try Again retry it).
+    func handleLoadFailure(in webView: WKWebView, error: NSError) {
+        let tab = (tabs + profileTabs.values.flatMap { $0 }).first { $0.webView == webView }
+        let failedURL = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? webView.url ?? tab?.url
+        guard let url = failedURL, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
+        let host = url.host ?? ""
+        let notFound = error.domain == NSURLErrorDomain &&
+            (error.code == NSURLErrorCannotFindHost || error.code == NSURLErrorDNSLookupFailed || error.code == NSURLErrorBadURL)
+        
+        if notFound, let guess = tab?.typedGuess, guess.url.host == url.host, let tab = tab {
+            tab.typedGuess = nil
+            loadTabURL(tab: tab, url: webSearchURL(for: guess.input))
+            return
+        }
+        tab?.typedGuess = nil
+        
+        let content = ErrorPage.content(domain: error.domain, code: error.code, host: host, fallback: error.localizedDescription)
+        let searchURL = notFound ? webSearchURL(for: host.isEmpty ? url.absoluteString : host) : nil
+        let html = ErrorPage.html(content, failedURL: url, searchURL: searchURL)
+        // Private WebKit (what Safari uses): shows the HTML while the page keeps the failed URL,
+        // so the address bar, history and ⌘R stay on it. Fallback: plain HTML.
+        let sel = NSSelectorFromString("_loadAlternateHTMLString:baseURL:forUnreachableURL:")
+        if !PrivateWebKit.isDisabled, webView.responds(to: sel) {
+            typealias Fn = @convention(c) (AnyObject, Selector, NSString, NSURL, NSURL) -> Void
+            let fn = unsafeBitCast(webView.method(for: sel), to: Fn.self)
+            fn(webView, sel, html as NSString, url as NSURL, url as NSURL)
+        } else {
+            webView.loadHTMLString(html, baseURL: nil)
         }
     }
     
