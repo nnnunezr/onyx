@@ -13,7 +13,13 @@ enum DownloadPolicy {
         return value == "attachment" || value.hasPrefix("attachment;") || value.hasPrefix("attachment ")
     }
 
-    static func decideResponse(statusCode: Int?, contentDisposition: String?, isMainFrame: Bool, canShowMIMEType: Bool) -> Decision {
+    /// Web documents Onyx always renders unless the server says `attachment`.
+    static func isWebDocument(_ mimeType: String?) -> Bool {
+        let mime = (mimeType ?? "").split(separator: ";").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+        return mime == "text/html" || mime == "application/xhtml+xml"
+    }
+
+    static func decideResponse(mimeType: String?, statusCode: Int?, contentDisposition: String?, isMainFrame: Bool, canShowMIMEType: Bool) -> Decision {
         // Redirects and empty responses carry no file, whatever their headers say.
         if let status = statusCode, (300...399).contains(status) || status == 204 || status == 205 {
             return .allow
@@ -24,7 +30,10 @@ enum DownloadPolicy {
         if isAttachment(contentDisposition) {
             return .download
         }
-        if canShowMIMEType {
+        // A page is never saved as a file. WebKit can report canShowMIMEType == false for a
+        // normal HTML page (seen on youtube.com in a signed-in workspace, likely a service-worker
+        // response), which saved "www.youtube.com.html" instead of opening YouTube.
+        if canShowMIMEType || isWebDocument(mimeType) {
             return .allow
         }
         // Allowing a type WebKit cannot show fails the load (WebKit error 102) and nothing

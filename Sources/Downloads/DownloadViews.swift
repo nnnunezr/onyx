@@ -18,6 +18,9 @@ class OnyxDownloadItem: Identifiable {
     var errorMessage: String?
     /// "Download Linked File As…" / "Save Image As…": ask where to save instead of ~/Downloads.
     var asksForLocation = false
+    /// Script-started download (navigation type .other) in the main frame. If the server answers
+    /// with a plain HTML page, it is opened in this web view instead of saved.
+    weak var openPageInsteadWebView: WKWebView?
     
     enum State {
         case downloading

@@ -325,6 +325,19 @@ extension BrowserController {
     
     // MARK: - WKDownloadDelegate
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+        // A script asked for a "download" that turned out to be an ordinary web page: show it.
+        if let webView = activeDownloads[download]?.openPageInsteadWebView,
+           let url = response.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+           DownloadPolicy.isWebDocument(response.mimeType),
+           !DownloadPolicy.isAttachment((response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")) {
+            OnyxLog.downloads.notice("script download was an HTML page; opening it instead")
+            completionHandler(nil)
+            downloads.removeAll { $0.download === download }
+            activeDownloads.removeValue(forKey: download)
+            updateDownloadsState()
+            webView.load(URLRequest(url: url))
+            return
+        }
         let cleanName: String
         if !suggestedFilename.isEmpty {
             cleanName = suggestedFilename

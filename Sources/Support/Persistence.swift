@@ -11,6 +11,7 @@ enum OnyxLog {
     static let crash = Logger(subsystem: "com.company.onyx", category: "crash")
     static let security = Logger(subsystem: "com.company.onyx", category: "security")
     static let webkit = Logger(subsystem: "com.company.onyx", category: "webkit")
+    static let downloads = Logger(subsystem: "com.company.onyx", category: "downloads")
 }
 
 // MARK: - Safe loading of stored lists

@@ -168,6 +168,7 @@ extension BrowserController {
         // `.other -> allow` return used to load them as a page. The old extension allowlist also
         // sent every .pdf, .png, .csv or extensionless link inline.
         if navigationAction.shouldPerformDownload {
+            OnyxLog.downloads.notice("action -> download: type=\(navigationAction.navigationType.rawValue, privacy: .public) scheme=\(navigationAction.request.url?.scheme ?? "?", privacy: .public) host=\(navigationAction.request.url?.host ?? "?", privacy: .private)")
             decisionHandler(.download, preferences)
             return
         }
@@ -178,11 +179,15 @@ extension BrowserController {
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
         let http = navigationResponse.response as? HTTPURLResponse
         let decision = DownloadPolicy.decideResponse(
+            mimeType: navigationResponse.response.mimeType,
             statusCode: http?.statusCode,
             contentDisposition: http?.value(forHTTPHeaderField: "Content-Disposition"),
             isMainFrame: navigationResponse.isForMainFrame,
             canShowMIMEType: navigationResponse.canShowMIMEType
         )
+        if decision != .allow {
+            OnyxLog.downloads.notice("response -> \(String(describing: decision), privacy: .public): mime=\(navigationResponse.response.mimeType ?? "nil", privacy: .public) canShow=\(navigationResponse.canShowMIMEType, privacy: .public) main=\(navigationResponse.isForMainFrame, privacy: .public) status=\(http?.statusCode ?? -1, privacy: .public) host=\(navigationResponse.response.url?.host ?? "?", privacy: .private)")
+        }
         switch decision {
         case .allow: decisionHandler(.allow)
         case .download: decisionHandler(.download)
@@ -193,6 +198,9 @@ extension BrowserController {
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
         download.delegate = self
         registerDownload(download: download, sourceURL: navigationAction.request.url)
+        if navigationAction.navigationType == .other, navigationAction.targetFrame?.isMainFrame ?? true {
+            activeDownloads[download]?.openPageInsteadWebView = webView
+        }
     }
     
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
