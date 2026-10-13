@@ -4,32 +4,16 @@ import UniformTypeIdentifiers
 
 extension BrowserController {
     // MARK: - Private Search & Bot Challenge Bypass Engine
-    /// Clears DuckDuckGo's anomaly/bot-check state from the given store only.
-    func purgeSearchBotAnomalyCookies(in store: WKWebsiteDataStore, completion: (() -> Void)? = nil) {
-        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-            let ddg = records.filter { $0.displayName.contains("duckduckgo") || $0.displayName.contains("duck.com") }
-            guard !ddg.isEmpty else {
-                completion?()
-                return
-            }
-            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: ddg) {
-                completion?()
-            }
-        }
-    }
-    
+    /// The "Search on Brave instead" button on DuckDuckGo's bot check. Only runs when Natan
+    /// clicks it: Onyx used to detect the check itself, delete DuckDuckGo's cookies and silently
+    /// rerun the search on Brave.
     func handleBotChallenge(in webView: WKWebView) {
         let query = extractSearchQuery(from: webView.url)
         guard !query.isEmpty else { return }
-        purgeSearchBotAnomalyCookies(in: webView.configuration.websiteDataStore) { [weak webView] in
-            DispatchQueue.main.async {
-                var comps = URLComponents(string: "https://search.brave.com/search")!
-                comps.queryItems = [URLQueryItem(name: "q", value: query)]
-                // Bot verification wall hit: fall back to Brave Search for this query.
-                if let bypassURL = comps.url {
-                    webView?.load(URLRequest(url: bypassURL))
-                }
-            }
+        var comps = URLComponents(string: "https://search.brave.com/search")!
+        comps.queryItems = [URLQueryItem(name: "q", value: query)]
+        if let url = comps.url {
+            webView.load(URLRequest(url: url))
         }
     }
     

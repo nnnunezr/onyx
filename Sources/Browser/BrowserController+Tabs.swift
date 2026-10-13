@@ -286,15 +286,8 @@ extension BrowserController {
                 candidates.append(rootFavicon)
             }
             
-            // Google S2 Favicon service (64px Retina-ready)
-            if let googleS2 = URL(string: "https://www.google.com/s2/favicons?domain=\(host)&sz=64") {
-                candidates.append(googleS2)
-            }
-            
-            // DuckDuckGo icons API
-            if let ddg = URL(string: "https://icons.duckduckgo.com/ip3/\(host).ico") {
-                candidates.append(ddg)
-            }
+            // Only the site's own icons. The Google S2 and DuckDuckGo icon-service fallbacks told
+            // those companies every host Onyx visited (including LAN and localhost hosts).
             
             FaviconManager.shared.fetchFirstValidFavicon(from: candidates, forHost: host) { [weak self, weak tab] image in
                 guard let image = image, let self = self, let tab = tab else { return }

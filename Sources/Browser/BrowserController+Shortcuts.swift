@@ -7,8 +7,10 @@ extension BrowserController {
     /// Most shortcuts live in the main menu (AppDelegate.setupMainMenu). Menu key equivalents reach
     /// a focused web page first, so Cmd+B (bold), Cmd+K (GitHub palette), Cmd+[ ] and Escape keep
     /// working inside web apps. This monitor handles only:
-    ///  - the browser-reserved keys a page must never be able to block (and that must still work
-    ///    when a crashed or hung page has focus): Cmd+T, Cmd+W, Cmd+Shift+W, Cmd+L, Cmd+R, Cmd+Q;
+    ///  - the browser-reserved keys a page must never be able to block: Cmd+T, Cmd+W, Cmd+Shift+W,
+    ///    Cmd+Q (the same set Chrome reserves);
+    ///  - Cmd+L and Cmd+R only while the page cannot take keys (crashed, or still a dead view),
+    ///    otherwise a web app may use them and the menu handles them when it does not;
     ///  - Ctrl(+Shift)+Tab.
     /// It ignores other windows (open/save panels, alerts) but runs inside Onyx's popovers.
     func setupShortcuts() {
@@ -37,12 +39,12 @@ extension BrowserController {
             switch key {
             case "w": self.menuCloseTab(); return nil
             case "t": self.menuNewTab(); return nil
-            case "l":
-                guard win.attachedSheet == nil else { return event }
-                self.menuFocusAddressBar(); return nil
-            case "r":
-                guard win.attachedSheet == nil else { return event }
-                self.reloadPage(); return nil
+            case "l", "r":
+                // A WKWebView without a live process swallows key equivalents, so the menu would
+                // never see these. Live pages get them first, like any other key.
+                guard win.attachedSheet == nil, self.activeTab.needsReload || self.activeWebView.url == nil else { return event }
+                if key == "l" { self.menuFocusAddressBar() } else { self.reloadPage() }
+                return nil
             case "q": NSApp.terminate(nil); return nil
             default: return event
             }

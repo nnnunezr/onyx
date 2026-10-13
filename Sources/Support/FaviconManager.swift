@@ -11,9 +11,12 @@ class FaviconManager {
     private let session: URLSession
     private var inFlightCompletions: [String: [(NSImage?) -> Void]] = [:]
     private let lock = NSLock()
+    /// Hosts with no icon: not asked again for 24 h (they were refetched on every visit).
+    private var missUntil: [String: Date] = [:]
     
     private init() {
-        let config = URLSessionConfiguration.default
+        // Ephemeral: no cookies or credentials sent with icon requests.
+        let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 6.0
         config.requestCachePolicy = .returnCacheDataElseLoad
         self.session = URLSession(configuration: config)
@@ -72,6 +75,11 @@ class FaviconManager {
         let cleanHost = host.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         
         lock.lock()
+        if let until = missUntil[cleanHost], until > Date() {
+            lock.unlock()
+            completion(nil)
+            return
+        }
         if inFlightCompletions[cleanHost] != nil {
             inFlightCompletions[cleanHost]?.append(completion)
             lock.unlock()
@@ -82,6 +90,9 @@ class FaviconManager {
         
         func finish(_ image: NSImage?) {
             self.lock.lock()
+            if image == nil {
+                self.missUntil[cleanHost] = Date().addingTimeInterval(24 * 3600)
+            }
             let callbacks = self.inFlightCompletions.removeValue(forKey: cleanHost) ?? []
             self.lock.unlock()
             for cb in callbacks {

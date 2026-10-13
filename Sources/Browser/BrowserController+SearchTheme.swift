@@ -127,9 +127,10 @@ extension BrowserController {
                 }
             }
 
-            function hideMascotsAndPromos() {
-                if (document.querySelector('.anomaly-modal, [class*="anomaly-modal"], #anomaly-detected')) return;
-                const badSelectors = [
+            // Logo, promo and feedback hiding: one stylesheet built once, one rule per selector so
+            // a selector WebKit rejects cannot void the others. It used to be a JS loop setting
+            // inline styles over ~90 selectors on every DOM change.
+            const badSelectors = [
                     '.header__logo-wrap', '.header__logo', '.header__logo__img', '[data-testid="logo"]',
                     '#header-logo-wrapper', '#header-logo', '#logo', '[data-testid="header-logo"]',
                     '[data-testid="logo-link"]', '[data-testid="logo_link"]', 'a[aria-label*="DuckDuckGo home" i]',
@@ -158,31 +159,42 @@ extension BrowserController {
                     '[class*="extension-banner"]', '[class*="onboarding"]', '[class*="feedback"]', '[class*="Feedback"]',
                     '[class*="feedback-btn"]', '[class*="feedback-modal"]',
                     'a[href*="spread"]', 'a[href*="newsletter"]',
-                    '#logo', '.logo img', 'header svg.logo', 'a#logo', '#fbar', '#footcnt', '#foot',
-                    '.uEierd', '#tads', '#tadsb', '[data-text-ad]', '.appbar', '.cv2Vmc', '.LH92ce',
-                    '.TQc1id', '.SJ1Kg', '.G57R0c', '#taw'
+                    '.logo img', 'header svg.logo'
                 ];
-                badSelectors.forEach(sel => {
-                    try {
-                        document.querySelectorAll(sel).forEach(e => {
-                            e.style.setProperty('display', 'none', 'important');
-                            e.style.setProperty('visibility', 'hidden', 'important');
-                            e.style.setProperty('opacity', '0', 'important');
-                            e.style.setProperty('width', '0', 'important');
-                            e.style.setProperty('height', '0', 'important');
-                            e.style.setProperty('max-width', '0', 'important');
-                            e.style.setProperty('max-height', '0', 'important');
-                        });
-                    } catch(err) {}
-                });
+            let hideSheetDone = false;
+            function hideMascotsAndPromos() {
+                if (hideSheetDone || isAnomaly()) return;
+                hideSheetDone = true;
+                const rules = badSelectors.map(sel => sel + ' { display: none !important; }');
+                try {
+                    const sheet = new CSSStyleSheet();
+                    rules.forEach(r => { try { sheet.insertRule(r, sheet.cssRules.length); } catch (e) {} });
+                    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+                    window.__onyxHideSheet = sheet;
+                } catch (e) {}
+            }
+            function reattachHideSheet() {
+                const sheet = window.__onyxHideSheet;
+                if (sheet && !document.adoptedStyleSheets.includes(sheet)) {
+                    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+                }
+            }
 
-                document.querySelectorAll('strong, span, p, a').forEach(el => {
-                    if (el.children.length === 0 && el.innerText && el.innerText.includes('DuckDuckGo')) {
-                        el.innerText = el.innerText.replace(/DuckDuckGo/g, 'Onyx Search');
-                    }
-                    if (el.children.length === 0 && el.innerText && el.innerText.trim() === 'Duck.ai') {
-                        el.innerText = 'Onyx Research';
-                    }
+            // Onyx branding on DuckDuckGo's own chrome only (header, nav, tab bar). Results, chat
+            // answers and anything else on the page keep their real text: this used to rewrite
+            // "DuckDuckGo" inside search results and streamed duck.ai answers.
+            const brandScopes = 'header, nav, [role="banner"], [role="navigation"], #header_wrapper, .header-wrap, #react-duckbar, [data-testid="duckbar"]';
+            function applyBranding() {
+                document.querySelectorAll(brandScopes).forEach(scope => {
+                    scope.querySelectorAll('strong, span, p, a, div').forEach(el => {
+                        if (el.children.length !== 0) return;
+                        const text = el.textContent || '';
+                        if (text.includes('DuckDuckGo')) {
+                            el.textContent = text.replace(/DuckDuckGo/g, 'Onyx Search');
+                        } else if (text.trim() === 'Duck.ai') {
+                            el.textContent = 'Onyx Research';
+                        }
+                    });
                 });
             }
 
@@ -453,16 +465,6 @@ extension BrowserController {
                 }
             }
 
-            function dismissOnboarding() {
-                const buttons = Array.from(document.querySelectorAll('button'));
-                for (const btn of buttons) {
-                    const txt = (btn.textContent || '').trim().toLowerCase();
-                    if (txt === 'got it' || txt === 'i agree' || txt === 'continue' || txt === 'accept') {
-                        btn.click();
-                    }
-                }
-            }
-
             let submitted = false;
             function autoSubmitIfReady() {
                 if (!isChat || submitted) return;
@@ -582,10 +584,10 @@ extension BrowserController {
                 banner.innerHTML = `
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:#ffffff; font-size:14px;">✦</span>
-                        <span style="font-size:12.5px; font-weight:500; color:#e2e8f0;">Onyx Private Shield: Verification Challenge</span>
+                        <span style="font-size:12.5px; font-weight:500; color:#e2e8f0;">DuckDuckGo wants to check you are not a bot</span>
                     </div>
                     <button class="onyx-bot-bypass-btn" id="onyx-bypass-click">
-                        Bypass Challenge ➔
+                        Search on Brave instead ➔
                     </button>
                 `;
                 modal.insertBefore(banner, modal.firstChild);
@@ -610,8 +612,11 @@ extension BrowserController {
                 }
                 scrubTitle();
                 hideMascotsAndPromos();
+                reattachHideSheet();
+                applyBranding();
                 if (isChat) {
-                    dismissOnboarding();
+                    // (No generic "got it / I agree / continue / accept" clicking: that accepted
+                    // prompts and terms on Natan's behalf.)
                     dismissPromoBanner();
                     autoSubmitIfReady();
                     injectThinkingOrbHUD();
@@ -629,13 +634,25 @@ extension BrowserController {
                 cycle();
             }
 
-            let debounceTimer = null;
+            // At most one pass per 250 ms, none while the tab is hidden. A pass per animation frame
+            // took about a third of the page's main thread while duck.ai streamed an answer
+            // (measured: 359 passes, 1.6 s of script in 5 s of streaming).
+            let throttleTimer = null;
+            let pendingWhileHidden = false;
             function debouncedCycle() {
-                if (debounceTimer) cancelAnimationFrame(debounceTimer);
-                debounceTimer = requestAnimationFrame(() => {
+                if (document.hidden) { pendingWhileHidden = true; return; }
+                if (throttleTimer) return;
+                throttleTimer = setTimeout(() => {
+                    throttleTimer = null;
                     cycle();
-                });
+                }, 250);
             }
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && pendingWhileHidden) {
+                    pendingWhileHidden = false;
+                    debouncedCycle();
+                }
+            });
 
             // Observe dynamic results and SPA DOM transitions for Google, DDG, and Brave
             const observeTarget = document.getElementById('rso') ||

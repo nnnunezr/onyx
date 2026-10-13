@@ -69,12 +69,6 @@ extension BrowserController {
                 updateSearchFavicon(for: webView.url ?? activeTab.url)
             }
         } else if isSearchURL(webView.url) {
-            // Auto-detect and disable bot verification for a seamless private search experience
-            webView.evaluateJavaScript("document.querySelector('.anomaly-modal, [class*=\"anomaly-modal\"], #anomaly-detected') !== null") { [weak self] (res, _) in
-                if (res as? Bool) == true {
-                    self?.handleBotChallenge(in: webView)
-                }
-            }
             if webView == activeWebView {
                 searchThinkingOrb.stopAnimation()
                 searchThinkingOrb.isHidden = true
