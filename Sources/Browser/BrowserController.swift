@@ -338,7 +338,9 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                     }
                 }
                 if matchingTab.id == activeTab.id {
-                    updateSearchField(url: url)
+                    // A page changing its own URL (autoplay, SPA routing) must not wipe what is being typed.
+                    let isEditingAddress = (window?.firstResponder as? NSTextView)?.delegate === searchField
+                    if !isEditingAddress { updateSearchField(url: url) }
                     updateSearchFavicon(for: url)
                     backButton.isEnabled = webView.canGoBack
                     forwardButton.isEnabled = webView.canGoForward
