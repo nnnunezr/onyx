@@ -76,7 +76,7 @@ extension BrowserController {
     }
     
     @objc func menuZoomIn() {
-        activeWebView.pageZoom += 0.1
+        activeWebView.pageZoom = min(3.0, activeWebView.pageZoom + 0.1)
     }
     
     @objc func menuZoomOut() {
@@ -152,6 +152,72 @@ extension BrowserController: NSMenuDelegate {
                 item.title = "Bookmark \(item.tag + 1)"
                 item.isHidden = true
             }
+        }
+    }
+}
+
+// MARK: - Print & Save
+extension BrowserController {
+    @objc func menuPrintPage() {
+        guard let window = window, window.attachedSheet == nil else { return }
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.horizontalPagination = .fit
+        info.verticalPagination = .automatic
+        info.isHorizontallyCentered = true
+        info.isVerticallyCentered = false
+        let op = activeWebView.printOperation(with: info)
+        op.showsPrintPanel = true
+        op.showsProgressPanel = true
+        // WKWebView's print view needs a frame or it prints blank pages.
+        op.view?.frame = activeWebView.bounds
+        op.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
+    private func suggestedPageFileName(_ ext: String) -> String {
+        let raw = activeWebView.title?.isEmpty == false ? activeWebView.title! : (activeWebView.url?.host ?? "Page")
+        let cleaned = raw.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(cleaned.prefix(80)) + "." + ext
+    }
+
+    private func savePage(ext: String, type: UTType, produce: @escaping (@escaping (Result<Data, Error>) -> Void) -> Void) {
+        guard let window = window, window.attachedSheet == nil else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = suggestedPageFileName(ext)
+        panel.allowedContentTypes = [type]
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            produce { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let data):
+                        do {
+                            try data.write(to: url, options: .atomic)
+                            self?.showVaultToastHUD(icon: "checkmark.circle.fill", title: "SAVED", message: url.lastPathComponent)
+                        } catch {
+                            self?.showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "COULDN'T SAVE", message: error.localizedDescription)
+                        }
+                    case .failure(let error):
+                        self?.showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "COULDN'T SAVE", message: error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Web Archive, like Safari's File > Save As: page plus its images and styles, opens offline.
+    @objc func menuSavePageAs() {
+        let webView = activeWebView
+        savePage(ext: "webarchive", type: UTType(filenameExtension: "webarchive") ?? .data) { done in
+            webView.createWebArchiveData { done($0) }
+        }
+    }
+
+    @objc func menuExportPDF() {
+        let webView = activeWebView
+        savePage(ext: "pdf", type: .pdf) { done in
+            webView.createPDF(configuration: WKPDFConfiguration()) { done($0) }
         }
     }
 }

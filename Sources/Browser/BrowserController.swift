@@ -42,6 +42,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     ]
     var activeProfile: BrowserProfile = BrowserProfile(id: "personal", name: "Personal", iconName: "person.crop.circle", colorHex: "#FFFFFF", isDefault: true)
     var profileTabs: [String: [BrowserTab]] = [:]
+    /// Most recent last. Reopened with ⇧⌘T into the workspace the tab was closed in.
+    var recentlyClosedTabs: [(url: URL, title: String, profileID: String)] = []
     var profileActiveIndices: [String: Int] = [:]
     var profileConfigurations: [String: WKWebViewConfiguration] = [:]
     var profileButton: ProfilePillButton!

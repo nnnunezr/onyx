@@ -14,7 +14,7 @@ class PasswordsNavButton: NSButton {
         self.bezelStyle = .regularSquare
         self.isBordered = false
         self.wantsLayer = true
-        self.toolTip = "Passwords & Vault (⌘⌥P)"
+        self.toolTip = "Passwords & Vault (⇧⌘P)"
         self.target = target
         self.action = action
         self.layer?.cornerRadius = 5
@@ -58,10 +58,10 @@ class PasswordsNavButton: NSButton {
         matchIndicator.isHidden = !match
         if match {
             contentTintColor = NSColor.white
-            toolTip = "✦ Saved Logins Available for Active Site (⌘⌥P)"
+            toolTip = "✦ Saved Logins Available for Active Site (⇧⌘P)"
         } else {
             contentTintColor = NSColor(white: 0.82, alpha: 1.0)
-            toolTip = "Passwords & Vault (⌘⌥P)"
+            toolTip = "Passwords & Vault (⇧⌘P)"
         }
     }
     

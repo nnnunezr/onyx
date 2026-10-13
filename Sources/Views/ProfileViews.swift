@@ -34,7 +34,7 @@ class ProfilePillButton: NSButton {
         layer?.borderColor = NSColor(white: 1.0, alpha: 0.10).cgColor
         layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.05).cgColor
         layer?.masksToBounds = true
-        toolTip = "Workspace: Personal · Hover to view & access Settings, click to switch (⌘⌥P)"
+        toolTip = "Workspace: Personal · Hover to view & access Settings, click to switch (⌥⌘O)"
         
         dotView.translatesAutoresizingMaskIntoConstraints = false
         dotView.wantsLayer = true

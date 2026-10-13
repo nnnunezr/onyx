@@ -22,7 +22,7 @@ enum OnyxToolbarTool: String, CaseIterable {
         switch self {
         case .aiResearch: return "Synthetic research & workspaces (⌘⇧S)"
         case .downloads: return "Files & active downloads (⌘J)"
-        case .passwords: return "Keychain & autofill (⌘⌥P)"
+        case .passwords: return "Keychain & autofill (⇧⌘P)"
         case .shield: return "Tracker blocker & memory monitor"
         }
     }

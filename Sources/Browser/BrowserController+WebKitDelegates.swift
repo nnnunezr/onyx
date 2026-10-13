@@ -333,7 +333,10 @@ extension BrowserController {
     func webViewDidClose(_ webView: WKWebView) {
         // Popups (e.g. OAuth windows) call window.close() when finished.
         if let tab = tabs.first(where: { $0.webView == webView }) {
+            let closedBefore = recentlyClosedTabs.count
             closeTab(tab: tab)
+            // A page closing itself (finished sign-in popup) is not something to reopen.
+            if recentlyClosedTabs.count > closedBefore { recentlyClosedTabs.removeLast() }
         }
     }
     

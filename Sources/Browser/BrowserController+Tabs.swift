@@ -128,6 +128,10 @@ extension BrowserController {
         guard index >= 0 && index < tabs.count else { return }
         let closingTab = tabs[index]
         let wasActive = (index == activeTabIndex)
+        if let url = closingTab.webView.url ?? Optional(closingTab.url), !isStartPageURL(url), url.absoluteString != "about:blank" {
+            recentlyClosedTabs.append((url, closingTab.title, activeProfile.id))
+            if recentlyClosedTabs.count > 25 { recentlyClosedTabs.removeFirst() }
+        }
         
         if closingTab.isObserved {
             closingTab.webView.removeObserver(self, forKeyPath: "estimatedProgress")
@@ -159,6 +163,15 @@ extension BrowserController {
             }
             renderTabs()
         }
+    }
+    
+    /// ⇧⌘T: brings back the most recently closed tab, in its own workspace.
+    @objc func menuReopenClosedTab() {
+        guard window?.attachedSheet == nil, let last = recentlyClosedTabs.popLast() else { NSSound.beep(); return }
+        if last.profileID != activeProfile.id, let profile = profiles.first(where: { $0.id == last.profileID }) {
+            switchToProfile(profile)
+        }
+        createNewTab(url: last.url, switchTo: true)
     }
     
     func renderTabs() {

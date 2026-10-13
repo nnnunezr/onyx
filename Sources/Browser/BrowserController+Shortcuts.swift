@@ -7,7 +7,7 @@ extension BrowserController {
     /// Most shortcuts live in the main menu (AppDelegate.setupMainMenu). Menu key equivalents reach
     /// a focused web page first, so Cmd+B (bold), Cmd+K (GitHub palette), Cmd+[ ] and Escape keep
     /// working inside web apps. This monitor handles only:
-    ///  - the browser-reserved keys a page must never be able to block: Cmd+T, Cmd+W, Cmd+Shift+W,
+    ///  - the browser-reserved keys a page must never be able to block: Cmd+T, Cmd+Shift+T, Cmd+W, Cmd+Shift+W,
     ///    Cmd+Q (the same set Chrome reserves);
     ///  - Cmd+L and Cmd+R only while the page cannot take keys (crashed, or still a dead view),
     ///    otherwise a web app may use them and the menu handles them when it does not;
@@ -34,6 +34,7 @@ extension BrowserController {
             guard onlyCommand else { return event }
             if flags.contains(.shift) {
                 if key == "w" { win.performClose(nil); return nil }
+                if key == "t" { self.menuReopenClosedTab(); return nil }
                 return event
             }
             switch key {

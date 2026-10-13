@@ -69,7 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(BrowserController.menuOpenSettings), keyEquivalent: ",")
         settingsItem.target = controller
         let passwordsItem = NSMenuItem(title: "Passwords & Vault...", action: #selector(BrowserController.menuTogglePasswords), keyEquivalent: "p")
-        passwordsItem.keyEquivalentModifierMask = [.command, .option]
+        passwordsItem.keyEquivalentModifierMask = [.command, .shift]
         passwordsItem.target = controller
         let extensionsItem = NSMenuItem(title: "Extensions & Tools...", action: #selector(BrowserController.menuToggleExtensions), keyEquivalent: "e")
         extensionsItem.keyEquivalentModifierMask = [.command, .option]
@@ -127,7 +127,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(NSMenuItem.separator())
         let reopenSessionItem = NSMenuItem(title: "Reopen Last Session", action: #selector(BrowserController.menuReopenLastSession), keyEquivalent: "")
         reopenSessionItem.target = controller
+        let reopenClosedItem = NSMenuItem(title: "Reopen Closed Tab", action: #selector(BrowserController.menuReopenClosedTab), keyEquivalent: "T")
+        reopenClosedItem.target = controller
+        fileMenu.addItem(reopenClosedItem)
         fileMenu.addItem(reopenSessionItem)
+        fileMenu.addItem(NSMenuItem.separator())
+        let savePageItem = NSMenuItem(title: "Save Page As…", action: #selector(BrowserController.menuSavePageAs), keyEquivalent: "s")
+        savePageItem.target = controller
+        let exportPDFItem = NSMenuItem(title: "Export as PDF…", action: #selector(BrowserController.menuExportPDF), keyEquivalent: "")
+        exportPDFItem.target = controller
+        let printItem = NSMenuItem(title: "Print…", action: #selector(BrowserController.menuPrintPage), keyEquivalent: "p")
+        printItem.target = controller
+        fileMenu.addItem(savePageItem)
+        fileMenu.addItem(exportPDFItem)
+        fileMenu.addItem(printItem)
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(closeTabItem)
         fileMenu.addItem(closeWindowItem)
