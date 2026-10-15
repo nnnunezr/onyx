@@ -217,6 +217,12 @@ extension BrowserController {
         // target="_blank" and window.open() are handled by webView(_:createWebViewWith:...) so
         // popups keep their window.opener link (required by OAuth / "Sign in with..." flows).
         
+        // A page asking to open another app (zoommtg:, slack:, mailto:): ask, then hand it to macOS.
+        if handleExternalAppRequest(navigationAction, in: webView) {
+            decisionHandler(.cancel, preferences)
+            return
+        }
+        
         // <a download> and Option-click: the page asked for a file, so always save it, whatever
         // the navigation type. Script-driven downloads (`a.click()` on a blob: or data: link, as
         // Drive, Docs exports and most "Export CSV" buttons do) arrive as .other; an early
@@ -321,6 +327,8 @@ extension BrowserController {
     
     // MARK: - WKUIDelegate (New Windows / Popups)
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // window.open("zoommtg://...") must not leave an empty tab behind.
+        if handleExternalAppRequest(navigationAction, in: webView) { return nil }
         // WebKit requires the returned view to use exactly this configuration (same process pool,
         // same data store as the opener) and loads the request into it itself.
         let url = navigationAction.request.url ?? URL(string: "about:blank")!
@@ -442,7 +450,7 @@ extension BrowserController {
         }
     }
     
-    private func trackJSDialog(_ alert: NSAlert, from webView: WKWebView) {
+    func trackJSDialog(_ alert: NSAlert, from webView: WKWebView) {
         activeJSDialogSheet = alert.window
         activeJSDialogWebView = webView
     }

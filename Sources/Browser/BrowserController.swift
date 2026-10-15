@@ -62,6 +62,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     /// so Cmd+W can still close a tab stuck in a dialog loop.
     weak var activeJSDialogSheet: NSWindow?
     weak var activeJSDialogWebView: WKWebView?
+    /// An "open this app?" sheet is showing; further external-app requests are ignored until it closes.
+    var externalAppPromptActive = false
     
     // Tab Management (Resilient Index Guarding)
     var tabs: [BrowserTab] = []

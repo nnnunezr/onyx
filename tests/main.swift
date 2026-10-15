@@ -74,6 +74,14 @@ check(DP.decideResponse(mimeType: "application/octet-stream", statusCode: 200, c
 check(DP.decideResponse(mimeType: "application/octet-stream", statusCode: 200, contentDisposition: nil, isMainFrame: true, canShowMIMEType: true) == .allow, "normal page renders")
 check(DP.decideResponse(mimeType: "application/octet-stream", statusCode: 302, contentDisposition: "attachment", isMainFrame: true, canShowMIMEType: false) == .allow, "redirect never downloads")
 check(DP.decideResponse(mimeType: "application/octet-stream", statusCode: 204, contentDisposition: nil, isMainFrame: true, canShowMIMEType: false) == .allow, "204 never downloads")
+// External app requests: unknown schemes prompt, web schemes never do, drive-by launches are dropped
+typealias EP = ExternalAppPolicy
+check(EP.decide(scheme: "zoommtg", handledByWebKit: false, isMainFrame: true, userInitiated: false) == .prompt, "main-frame zoommtg prompts")
+check(EP.decide(scheme: "SLACK", handledByWebKit: false, isMainFrame: false, userInitiated: true) == .prompt, "clicked iframe link prompts (any case)")
+check(EP.decide(scheme: "spotify", handledByWebKit: false, isMainFrame: false, userInitiated: false) == .block, "hidden iframe launch dropped")
+check(EP.decide(scheme: "https", handledByWebKit: true, isMainFrame: true, userInitiated: true) == .notExternal, "https stays in WebKit")
+check(EP.decide(scheme: nil, handledByWebKit: false, isMainFrame: true, userInitiated: true) == .notExternal, "no scheme is not external")
+check(EP.decide(scheme: "applescript", handledByWebKit: false, isMainFrame: true, userInitiated: true) == .block, "applescript always blocked")
 d.removePersistentDomain(forName: suite)
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED")
 exit(fails == 0 ? 0 : 1)
