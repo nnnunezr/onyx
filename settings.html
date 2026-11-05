@@ -840,6 +840,16 @@
       </div>
 
       <div class="card">
+        <div class="row-item" id="row-default-browser">
+          <div class="row-info">
+            <div class="row-title">Default Browser</div>
+            <div class="row-desc" id="default-browser-desc">Open links from Mail, Messages and other apps in Onyx. macOS asks you to confirm.</div>
+          </div>
+          <div class="row-control">
+            <button class="btn" id="btn-default-browser" onclick="makeDefaultBrowser()">Make Default</button>
+          </div>
+        </div>
+
         <div class="row-item">
           <div class="row-info">
             <div class="row-title">Default Search Engine</div>
@@ -1289,6 +1299,10 @@
     showToast(`Default search set to ${val.charAt(0).toUpperCase() + val.slice(1)}`);
   }
 
+  function makeDefaultBrowser() {
+    sendToSwift('makeDefaultBrowser');
+  }
+
   function updateStartup(val) {
     sendToSwift('setStartup', { mode: val });
     showToast('Startup preference saved');
@@ -1374,6 +1388,20 @@
     setChecked('toggle-adblock', data.adBlockEnabled);
     setChecked('toggle-news', data.newsEnabled);
     setChecked('toggle-save-passwords', data.offerSavePasswords);
+
+    if (data.isDefaultBrowser !== undefined) {
+      const btn = document.getElementById('btn-default-browser');
+      const desc = document.getElementById('default-browser-desc');
+      if (btn) {
+        btn.textContent = data.isDefaultBrowser ? 'Default Browser' : 'Make Default';
+        btn.disabled = !!data.isDefaultBrowser;
+      }
+      if (desc) {
+        desc.textContent = data.isDefaultBrowser
+          ? 'Onyx opens links from Mail, Messages and other apps.'
+          : 'Open links from Mail, Messages and other apps in Onyx. macOS asks you to confirm.';
+      }
+    }
 
     const ram = document.getElementById('ram-usage');
     if (ram && data.ramUsage) ram.textContent = data.ramUsage;

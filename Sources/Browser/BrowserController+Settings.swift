@@ -48,6 +48,7 @@ extension BrowserController {
             "newsEnabled": newsEnabled,
             "offerSavePasswords": offerSavePasswords,
             "downloadsPath": downloadsPath,
+            "isDefaultBrowser": DefaultBrowser.isDefault,
             "profiles": profList,
             "activeProfileId": activeProfile.id,
             "ramUsage": String(format: "%.1f MB", getResidentMemoryMB())
@@ -159,7 +160,10 @@ extension BrowserController {
             
         case "openPasswords":
             togglePasswordsPopover()
-            
+
+        case "makeDefaultBrowser":
+            requestDefaultBrowser()
+
         default:
             return
         }

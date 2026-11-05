@@ -127,6 +127,32 @@ extension BrowserController {
         alert.runModal()
     }
     
+    /// App menu > "Make Onyx Default Browser…". macOS shows its own confirmation dialog.
+    @objc func menuMakeDefaultBrowser() {
+        requestDefaultBrowser()
+    }
+
+    func requestDefaultBrowser() {
+        if DefaultBrowser.isDefault {
+            showVaultToastHUD(icon: "checkmark.circle.fill", title: "ALREADY DEFAULT", message: "Links from other apps already open in Onyx")
+            return
+        }
+        DefaultBrowser.request { [weak self] isDefault, error in
+            guard let self = self else { return }
+            if isDefault {
+                self.showVaultToastHUD(icon: "checkmark.circle.fill", title: "DEFAULT BROWSER", message: "Links from other apps now open in Onyx")
+            } else if error == nil {
+                // The user dismissed the system dialog; nothing to report.
+                OnyxLog.security.notice("default browser request was not approved")
+            } else {
+                self.showVaultToastHUD(icon: "exclamationmark.triangle.fill", title: "COULD NOT SET DEFAULT", message: "Choose Onyx under System Settings > Desktop & Dock > Default web browser")
+            }
+            if let webView = self.tabs.first(where: { self.isSettingsURL($0.url) })?.webView {
+                self.sendSettingsPayload(to: webView)
+            }
+        }
+    }
+
     @objc func showAboutPanel() {
         let alert = NSAlert()
         alert.messageText = "Onyx"

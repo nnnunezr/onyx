@@ -44,8 +44,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func application(_ application: NSApplication, open urls: [URL]) {
+        // openLaunchURL replaces an untouched start page, so a link that launches Onyx
+        // does not leave an empty start-page tab behind it.
         for url in urls {
-            browserController?.createNewTab(url: url)
+            browserController?.openLaunchURL(url)
         }
     }
     
@@ -68,6 +70,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         aboutItem.target = controller
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(BrowserController.menuOpenSettings), keyEquivalent: ",")
         settingsItem.target = controller
+        let defaultBrowserItem = NSMenuItem(title: "Make Onyx Default Browser…", action: #selector(BrowserController.menuMakeDefaultBrowser), keyEquivalent: "")
+        defaultBrowserItem.target = controller
         let passwordsItem = NSMenuItem(title: "Passwords & Vault...", action: #selector(BrowserController.menuTogglePasswords), keyEquivalent: "p")
         passwordsItem.keyEquivalentModifierMask = [.command, .shift]
         passwordsItem.target = controller
@@ -82,6 +86,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         appMenu.addItem(aboutItem)
         appMenu.addItem(settingsItem)
+        appMenu.addItem(defaultBrowserItem)
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(passwordsItem)
         appMenu.addItem(extensionsItem)
