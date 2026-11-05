@@ -208,7 +208,8 @@ extension BrowserController {
         // ⌘-click on a link: open it in a background tab (no opener relationship needed)
         if navigationAction.navigationType == .linkActivated,
            navigationAction.modifierFlags.contains(.command),
-           let url = navigationAction.request.url {
+           let url = navigationAction.request.url,
+           ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
             createNewTab(url: url, switchTo: navigationAction.modifierFlags.contains(.shift))
             decisionHandler(.cancel, preferences)
             return
@@ -378,7 +379,20 @@ extension BrowserController {
         }
     }
     
+    /// A dialog from a tab that is not on screen would sit over whatever tab you are looking at
+    /// (a fake "re-enter your password" over your bank). Those, and a page firing more than 3
+    /// dialogs in 10 s, are answered with the default result instead of being shown.
+    private func shouldSuppressJSDialog(from webView: WKWebView) -> Bool {
+        if webView != activeWebView { return true }
+        let now = Date()
+        recentJSDialogTimes = recentJSDialogTimes.filter { now.timeIntervalSince($0) < 10 }
+        if recentJSDialogTimes.count >= 3 { return true }
+        recentJSDialogTimes.append(now)
+        return false
+    }
+    
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        if shouldSuppressJSDialog(from: webView) { return completionHandler() }
         let alert = NSAlert()
         let host = frame.request.url?.host ?? "Web Page"
         alert.messageText = "\(host)"
@@ -398,6 +412,7 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+        if shouldSuppressJSDialog(from: webView) { return completionHandler(false) }
         let alert = NSAlert()
         let host = frame.request.url?.host ?? "Web Page"
         alert.messageText = "\(host)"
@@ -418,6 +433,7 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
+        if shouldSuppressJSDialog(from: webView) { return completionHandler(nil) }
         let alert = NSAlert()
         let host = frame.request.url?.host ?? "Web Page"
         alert.messageText = "\(host)"

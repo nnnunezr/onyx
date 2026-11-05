@@ -40,6 +40,9 @@ check(!URLClassifier.isLoopback("192.168.1.1"), "LAN is not loopback")
 let suite = "onyx.tests.\(ProcessInfo.processInfo.processIdentifier)"
 let d = UserDefaults(suiteName: suite)!
 d.set(Data("not json".utf8), forKey: "OnyxBookmarks")
+// Keep recovery backups out of the real ~/Library/Application Support/Onyx/recovery.
+let scratchRecovery = FileManager.default.temporaryDirectory.appendingPathComponent("onyx-tests-recovery-\(UUID().uuidString)", isDirectory: true)
+Persistence.recoveryDirectoryOverride = scratchRecovery
 let broken = Persistence.loadList(BookmarkItem.self, key: "OnyxBookmarks", defaults: d)
 check(broken.problem != nil && broken.items.isEmpty, "garbage bookmarks flagged, nothing salvaged")
 check(broken.problem?.backupURL.map { FileManager.default.fileExists(atPath: $0.path) } == true, "garbage bookmarks backed up")
@@ -83,5 +86,6 @@ check(EP.decide(scheme: "https", handledByWebKit: true, isMainFrame: true, userI
 check(EP.decide(scheme: nil, handledByWebKit: false, isMainFrame: true, userInitiated: true) == .notExternal, "no scheme is not external")
 check(EP.decide(scheme: "applescript", handledByWebKit: false, isMainFrame: true, userInitiated: true) == .block, "applescript always blocked")
 d.removePersistentDomain(forName: suite)
+try? FileManager.default.removeItem(at: scratchRecovery)
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED")
 exit(fails == 0 ? 0 : 1)

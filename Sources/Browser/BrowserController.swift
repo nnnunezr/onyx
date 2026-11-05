@@ -64,6 +64,8 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
     weak var activeJSDialogWebView: WKWebView?
     /// An "open this app?" sheet is showing; further external-app requests are ignored until it closes.
     var externalAppPromptActive = false
+    /// When recent alert()/confirm()/prompt() dialogs were shown, to cap a page that spams them.
+    var recentJSDialogTimes: [Date] = []
     
     // Tab Management (Resilient Index Guarding)
     var tabs: [BrowserTab] = []
@@ -338,7 +340,9 @@ class BrowserController: NSWindowController, WKNavigationDelegate, WKUIDelegate,
                     }
                 }
                 if matchingTab.id == activeTab.id {
-                    updateSearchField(url: url)
+                    // A page changing its own URL (autoplay, SPA routing) must not wipe what is being typed.
+                    let isEditingAddress = (window?.firstResponder as? NSTextView)?.delegate === searchField
+                    if !isEditingAddress { updateSearchField(url: url) }
                     updateSearchFavicon(for: url)
                     backButton.isEnabled = webView.canGoBack
                     forwardButton.isEnabled = webView.canGoForward

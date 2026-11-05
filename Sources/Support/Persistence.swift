@@ -40,7 +40,11 @@ enum Persistence {
         }
     }
 
+    /// Tests point this at a scratch folder so they never touch the real Application Support.
+    nonisolated(unsafe) static var recoveryDirectoryOverride: URL?
+
     static var recoveryDirectory: URL {
+        if let override = recoveryDirectoryOverride { return override }
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         return appSupport.appendingPathComponent("Onyx/recovery", isDirectory: true)
