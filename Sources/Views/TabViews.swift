@@ -74,12 +74,27 @@ class TabItemView: NSView {
     private var closeBtn: TabCloseButton!
     private var isHovered: Bool = false
     
-    var onSelect: ((BrowserTab) -> Void)?
+    /// The pointer moved while this tab is being dragged to a new place.
+    var onReorder: ((TabItemView, NSEvent) -> Void)?
+    /// The mouse was released after a press on the tab; `reordered` is true after a drag. The
+    /// tab strip is not rebuilt before this, so the view being dragged stays alive.
+    var onPressEnd: ((BrowserTab, Bool) -> Void)?
+    private var pressStartX: CGFloat?
+    private var isReordering = false
     var onClose: ((BrowserTab) -> Void)?
     var onDuplicate: ((BrowserTab) -> Void)?
     var onReload: ((BrowserTab) -> Void)?
     var onCloseOthers: ((BrowserTab) -> Void)?
     var onCopyURL: ((BrowserTab) -> Void)?
+    /// A press on a tab is a click or a reorder drag, never a window drag.
+    override var mouseDownCanMoveWindow: Bool { false }
+    
+    /// Every hit on the tab lands on the tab itself, except the close button, so a press, its
+    /// drag and its release all reach this one view rather than its title label or icon.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let hit = super.hitTest(point) else { return nil }
+        return hit === closeBtn ? hit : self
+    }
     
     init(tab: BrowserTab, index: Int, isSelected: Bool) {
         self.tab = tab
@@ -264,13 +279,25 @@ class TabItemView: NSView {
         if closeBtn.frame.contains(loc) {
             return
         }
+        pressStartX = event.locationInWindow.x
+        isReordering = false
         
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.08
             Motion.prepare(ctx)
             self.layer?.setAffineTransform(CGAffineTransform(scaleX: 0.985, y: 0.985))
         }
-        onSelect?(tab)
+    }
+    
+    /// A sideways drag of a few points starts a reorder; a plain click never moves anything.
+    override func mouseDragged(with event: NSEvent) {
+        guard let startX = pressStartX else { return }
+        if !isReordering {
+            guard abs(event.locationInWindow.x - startX) >= 4 else { return }
+            isReordering = true
+            alphaValue = 0.85
+        }
+        onReorder?(self, event)
     }
     
     override func mouseUp(with event: NSEvent) {
@@ -279,6 +306,12 @@ class TabItemView: NSView {
             Motion.prepare(ctx)
             self.layer?.setAffineTransform(.identity)
         }
+        guard pressStartX != nil else { return }
+        let reordered = isReordering
+        pressStartX = nil
+        isReordering = false
+        alphaValue = 1
+        onPressEnd?(tab, reordered)
     }
     
     @objc func closeClicked() {
@@ -321,6 +354,48 @@ class TabItemView: NSView {
     @objc private func copyURLAction() { onCopyURL?(tab) }
     @objc private func closeOthersAction() { onCloseOthers?(tab) }
     @objc private func closeTabAction() { onClose?(tab) }
+}
+
+// MARK: - Tab strip drag to reorder
+enum TabStripDrag {
+    /// Moves `item` to the slot under the pointer, and scrolls the strip while the pointer is past
+    /// its ends. Called for every drag event; does nothing while the tab is already in its slot.
+    static func move(_ item: TabItemView, to event: NSEvent, in stack: NSStackView) {
+        let views = stack.arrangedSubviews
+        let slot = TabReorder.slot(forX: stack.convert(event.locationInWindow, from: nil).x, rightEdges: views.map { $0.frame.maxX })
+        if let from = views.firstIndex(of: item), from != slot {
+            stack.removeArrangedSubview(item)
+            stack.insertArrangedSubview(item, at: slot)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.12
+                Motion.prepare(ctx)
+                stack.layoutSubtreeIfNeeded()
+            }
+        }
+        scrollSideways(for: event, in: stack)
+    }
+
+    /// The tab ids in the order they are on screen.
+    static func order(in stack: NSStackView) -> [UUID] {
+        stack.arrangedSubviews.compactMap { ($0 as? TabItemView)?.tab.id }
+    }
+}
+
+extension TabStripDrag {
+    /// Scrolls the strip sideways while the pointer is past its ends. Not `autoscroll(with:)`:
+    /// that scrolls vertically too, and a pointer that leaves the 32 pt strip pushed the tabs
+    /// down out of view behind the toolbar.
+    fileprivate static func scrollSideways(for event: NSEvent, in stack: NSStackView) {
+        guard let scroll = stack.enclosingScrollView else { return }
+        let clip = scroll.contentView
+        let step = TabReorder.edgeScroll(pointerX: clip.convert(event.locationInWindow, from: nil).x,
+                                         visibleMinX: clip.bounds.minX, visibleMaxX: clip.bounds.maxX)
+        guard step != 0 else { return }
+        var origin = clip.bounds.origin
+        origin.x = max(0, min(origin.x + step, stack.frame.width - clip.bounds.width))
+        clip.setBoundsOrigin(origin)
+        scroll.reflectScrolledClipView(clip)
+    }
 }
 
 // MARK: - Tab strip scroll view

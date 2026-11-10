@@ -193,10 +193,12 @@ extension BrowserController {
         tabStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for (i, tab) in tabs.enumerated() {
             let tabView = TabItemView(tab: tab, index: i, isSelected: (i == activeTabIndex))
-            tabView.onSelect = { [weak self] t in
-                if let idx = self?.tabs.firstIndex(where: { $0.id == t.id }) {
-                    self?.selectTab(at: idx)
-                }
+            tabView.onReorder = { [weak self] item, event in
+                guard let self = self else { return }
+                TabStripDrag.move(item, to: event, in: self.tabStack)
+            }
+            tabView.onPressEnd = { [weak self] t, reordered in
+                self?.finishTabPress(t, reordered: reordered)
             }
             tabView.onClose = { [weak self] t in
                 self?.closeTab(tab: t)
@@ -229,13 +231,13 @@ extension BrowserController {
         }
     }
     
-    /// Tabs share the space between the traffic lights and the right-hand controls: 220 pt each
+    /// Tabs share the space between the left edge and the right-hand controls: 220 pt each
     /// when they fit, shrinking evenly to 72 pt; past that the row scrolls and keeps the active
     /// tab in view.
     func layoutTabStrip() {
         guard let tabBar = tabBar, let stack = tabStack, let strip = tabScrollView else { return }
         let maxWidth: CGFloat = 220, minWidth: CGFloat = 72
-        let leading: CGFloat = 78, reservedTrailing: CGFloat = 120, newTabSpace: CGFloat = 4 + 24
+        let leading: CGFloat = 12, reservedTrailing: CGFloat = 120, newTabSpace: CGFloat = 4 + 24
         let available = max(minWidth, tabBar.bounds.width - leading - reservedTrailing - newTabSpace)
         let count = CGFloat(max(stack.arrangedSubviews.count, 1))
         let spacing = stack.spacing * (count - 1)

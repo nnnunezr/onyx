@@ -6,7 +6,18 @@ extension BrowserController {
     func setupUI() {
         guard let window = self.window, let contentView = window.contentView else { return }
         
-        // 1. Titlebar Tab Bar (Height: 38px, native window drag on background, traffic lights at x: 12..70)
+        // 0. Titlebar band: the strip across the top where the traffic lights sit. The system drags
+        // the window from here, so nothing interactive lives in it (tabs that did were dragged
+        // along with the window). It is plain drag area; the tab row starts below it.
+        let titlebarBand = TabBarView()
+        titlebarBand.translatesAutoresizingMaskIntoConstraints = false
+        titlebarBand.wantsLayer = true
+        titlebarBand.layer?.backgroundColor = NSColor(red: 14/255.0, green: 14/255.0, blue: 17/255.0, alpha: 1.0).cgColor
+        contentView.addSubview(titlebarBand)
+        // Bottom edge of the titlebar (0 in full screen, where it hides).
+        let belowTitlebar = (window.contentLayoutGuide as? NSLayoutGuide)?.topAnchor ?? contentView.topAnchor
+        
+        // 1. Tab row (Height: 38px, below the titlebar band; empty space in it still drags the window)
         tabBar = TabBarView()
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         tabBar.wantsLayer = true
@@ -245,8 +256,14 @@ extension BrowserController {
         tabBar.postsFrameChangedNotifications = true
         
         NSLayoutConstraint.activate([
-            // Row 1: Titlebar Tab Bar (38px, starts at x: 78 to clear macOS traffic lights at 12..70)
-            tabBar.topAnchor.constraint(equalTo: contentView.topAnchor),
+            // Row 0: titlebar band (drag only), from the window top down to the titlebar's bottom edge
+            titlebarBand.topAnchor.constraint(equalTo: contentView.topAnchor),
+            titlebarBand.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            titlebarBand.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            titlebarBand.bottomAnchor.constraint(equalTo: belowTitlebar),
+            
+            // Row 1: Tab row (38px, directly below the titlebar band)
+            tabBar.topAnchor.constraint(equalTo: belowTitlebar),
             tabBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             tabBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             tabBar.heightAnchor.constraint(equalToConstant: 38),
@@ -256,7 +273,7 @@ extension BrowserController {
             tabSeparator.trailingAnchor.constraint(equalTo: tabBar.trailingAnchor),
             tabSeparator.heightAnchor.constraint(equalToConstant: 1),
             
-            tabScrollView.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor, constant: 78),
+            tabScrollView.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor, constant: 12),
             tabScrollView.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
             tabScrollView.heightAnchor.constraint(equalToConstant: 32),
             tabStack.leadingAnchor.constraint(equalTo: tabScrollView.contentView.leadingAnchor),
