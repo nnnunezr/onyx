@@ -685,13 +685,8 @@
     gap: var(--space-2);
   }
 
-  .deck-hint {
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    color: var(--text-dim);
-  }
+  .deck-tab-btn.dragging { opacity: 0.4; }
+  .deck-tab-btn[draggable="true"] { cursor: grab; }
 
   /* News Filters & Meta in Header */
   .news-header-meta {
@@ -897,23 +892,49 @@
     stroke: var(--text);
   }
 
-  .workspace-key {
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 10px;
-    font-weight: 500;
+  .workspace-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: -4px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 6px;
     color: var(--text-dim);
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
+    opacity: 0.25;
+    cursor: pointer;
     flex-shrink: 0;
-    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+    transition: opacity 140ms ease, color 140ms ease, background-color 140ms ease;
   }
 
-  .workspace-card:hover .workspace-key {
+  .workspace-card:hover .workspace-edit { opacity: 0.6; }
+
+  .workspace-edit:hover,
+  .workspace-edit:focus-visible {
+    opacity: 1;
     color: var(--text);
     background: rgba(255, 255, 255, 0.08);
-    border-color: var(--border-hover);
+  }
+
+  .workspace-edit:focus-visible { outline: 2px solid rgba(147, 197, 253, 0.7); }
+
+  .workspace-edit svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    fill: none;
+  }
+
+  /* No hover on touch screens, so keep the pencil findable there. */
+  @media (hover: none) { .workspace-edit { opacity: 0.5; } }
+
+  .workspace-letter {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
   }
 
   .workspace-meta {
@@ -925,6 +946,8 @@
   }
 
   .workspace-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 13px;
     font-weight: 590;
     color: var(--text);
@@ -934,6 +957,8 @@
   }
 
   .workspace-desc {
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 11px;
     font-weight: 400;
     color: var(--text-subtle);
@@ -1692,6 +1717,8 @@
     font-weight: 600;
     cursor: pointer;
   }
+  .pin-field.wide { grid-column: 1 / -1; }
+  #ws-form { margin-top: var(--space-3); max-width: none; }
   .pin-btn.primary { background: #fff; color: #070709; border-color: #fff; }
   @media (max-width: 520px) {
     .pin-form { grid-template-columns: 1fr; }
@@ -1790,7 +1817,7 @@
     <div class="deck-header">
       <!-- Apple-style Segmented Pill Switcher -->
       <div class="deck-segmented-pill" role="tablist">
-        <button type="button" class="deck-tab-btn active" id="deck-btn-workspaces" role="tab" aria-selected="true" title="Switch to Workspaces (Press W)">
+        <button type="button" class="deck-tab-btn active" id="deck-btn-workspaces" data-deck="workspaces" role="tab" aria-selected="true" title="Switch to Workspaces (Press W)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"></rect>
             <rect x="14" y="3" width="7" height="7"></rect>
@@ -1799,7 +1826,7 @@
           </svg>
           <span>Workspaces</span>
         </button>
-        <button type="button" class="deck-tab-btn" id="deck-btn-news" role="tab" aria-selected="false" title="Switch to Live News (Press N)">
+        <button type="button" class="deck-tab-btn" id="deck-btn-news" data-deck="news" role="tab" aria-selected="false" title="Switch to Live News (Press N)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path>
             <path d="M18 14h-8"></path>
@@ -1813,9 +1840,6 @@
 
       <!-- Contextual Header Meta / Actions -->
       <div class="deck-actions">
-        <!-- Workspaces Hint -->
-        <span class="deck-hint" id="deck-workspaces-hint">⌘1 – ⌘3</span>
-
         <!-- News Category Pills & Refresh (hidden by default) -->
         <div class="news-header-meta" id="deck-news-meta" style="display: none;">
           <div class="news-status-pill" id="news-status-pill" title="Live news automatically updated daily">
@@ -1839,56 +1863,18 @@
 
     <!-- View 1: Workspaces Deck -->
     <div class="deck-view" id="deck-view-workspaces">
-      <div class="workspaces-grid">
-        <!-- Workspace 1: Deep Research -->
-        <a class="workspace-card" data-url="https://duckduckgo.com/?q=&ia=chat" title="AI Research · ⌘1">
-          <div class="workspace-card-top">
-            <div class="workspace-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <span class="workspace-key">⌘1</span>
-          </div>
-          <div class="workspace-meta">
-            <span class="workspace-title">AI Research</span>
-            <span class="workspace-desc">Canvas & Synthesis</span>
-          </div>
-        </a>
-
-        <!-- Workspace 2: Trading & Markets -->
-        <a class="workspace-card" data-url="https://web.ninjatrader.com/trading-mode" title="NinjaTrader · ⌘2">
-          <div class="workspace-card-top">
-            <div class="workspace-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <span class="workspace-key">⌘2</span>
-          </div>
-          <div class="workspace-meta">
-            <span class="workspace-title">NinjaTrader</span>
-            <span class="workspace-desc">Futures Terminal</span>
-          </div>
-        </a>
-
-        <!-- Workspace 3: Academic & Campus -->
-        <a class="workspace-card" data-url="https://canvas.unapec.edu.do/" title="UNAPEC Virtual · ⌘3">
-          <div class="workspace-card-top">
-            <div class="workspace-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-            </div>
-            <span class="workspace-key">⌘3</span>
-          </div>
-          <div class="workspace-meta">
-            <span class="workspace-title">UNAPEC Virtual</span>
-            <span class="workspace-desc">Academic Portal</span>
-          </div>
-        </a>
-      </div>
+      <div class="workspaces-grid" id="workspaces-grid"></div>
+      <form class="pin-form" id="ws-form" hidden>
+        <label class="pin-field"><span>Name</span><input id="ws-name" type="text" maxlength="40" autocomplete="off"></label>
+        <label class="pin-field"><span>Subtitle</span><input id="ws-desc" type="text" maxlength="60" autocomplete="off"></label>
+        <label class="pin-field wide"><span>Address</span><input id="ws-url" type="text" placeholder="github.com" autocomplete="off" spellcheck="false"></label>
+        <div class="pin-form-actions">
+          <span class="pin-form-error" id="ws-form-error" role="alert"></span>
+          <button type="button" class="pin-btn" id="ws-reset">Reset</button>
+          <button type="button" class="pin-btn" id="ws-cancel">Cancel</button>
+          <button type="submit" class="pin-btn primary">Save</button>
+        </div>
+      </form>
     </div>
 
     <!-- View 2: Live News Deck -->
@@ -3599,8 +3585,212 @@
   if (initialLocal) pins = initialLocal;
   renderPins();
 
-  // Workspace card clicks
-  document.querySelectorAll('.workspace-card, .suggested-card').forEach((el) => {
+  // --- Start layout: editable workspace cards + draggable deck tabs ---
+  // Saved like pins: natively (shared by every workspace profile) with a localStorage backup.
+  const WS_ICONS = {
+    research: '<path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>',
+    trading: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+    campus: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>'
+  };
+  const DEFAULT_WORKSPACES = [
+    { id: 'research', title: 'AI Research', desc: 'Canvas & Synthesis', url: 'https://duckduckgo.com/?q=&ia=chat' },
+    { id: 'trading', title: 'NinjaTrader', desc: 'Futures Terminal', url: 'https://web.ninjatrader.com/trading-mode' },
+    { id: 'campus', title: 'UNAPEC Virtual', desc: 'Academic Portal', url: 'https://canvas.unapec.edu.do/' }
+  ];
+  const DECK_TABS = ['workspaces', 'news'];
+  const PENCIL_SVG = '<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+  let workspaces = DEFAULT_WORKSPACES.map(w => ({ ...w }));
+  let deckOrder = DECK_TABS.slice();
+  let editingWorkspace = null;
+
+  // Cards stay in place and tabs stay known: anything missing or invalid falls back to defaults.
+  function sanitizeLayout(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const saved = Array.isArray(raw.workspaces) ? raw.workspaces : [];
+    const cards = DEFAULT_WORKSPACES.map(def => {
+      const s = saved.find(w => w && w.id === def.id);
+      const url = s && normalizePinURL(s.url);
+      const title = s && typeof s.title === 'string' ? s.title.trim().slice(0, 40) : '';
+      if (!url || !title) return { ...def };
+      return { id: def.id, title, desc: typeof s.desc === 'string' ? s.desc.trim().slice(0, 60) : '', url };
+    });
+    const order = (Array.isArray(raw.order) ? raw.order : []).filter((k, i, a) => DECK_TABS.includes(k) && a.indexOf(k) === i);
+    DECK_TABS.forEach(k => { if (!order.includes(k)) order.push(k); });
+    return { workspaces: cards, order };
+  }
+  function saveLayout() {
+    const layout = { order: deckOrder, workspaces };
+    try { localStorage.setItem('onyx-layout', JSON.stringify(layout)); } catch (e) {}
+    if (OnyxBridge.isMac && window.webkit.messageHandlers.onyxSettings) {
+      window.webkit.messageHandlers.onyxSettings.postMessage({ action: 'setStartLayout', layout: layout });
+    }
+  }
+  function localLayout() {
+    try { return sanitizeLayout(JSON.parse(localStorage.getItem('onyx-layout') || 'null')); } catch (e) { return null; }
+  }
+  function applyLayout(layout) {
+    workspaces = layout.workspaces;
+    deckOrder = layout.order;
+    renderWorkspaces();
+    applyDeckOrder();
+  }
+  // Onyx (macOS) pushes its saved layout after every load, or null when it has none; null plus
+  // a local backup means the native copy was lost, so the backup is used and handed back.
+  window.setStartLayout = function(raw) {
+    const clean = raw ? sanitizeLayout(raw) : null;
+    if (clean) {
+      try { localStorage.setItem('onyx-layout', JSON.stringify(clean)); } catch (e) {}
+      applyLayout(clean);
+    } else {
+      const backup = localLayout();
+      if (!backup) return;
+      applyLayout(backup);
+      saveLayout();
+    }
+  };
+
+  const wsGrid = document.getElementById('workspaces-grid');
+  const wsForm = document.getElementById('ws-form');
+  const wsName = document.getElementById('ws-name');
+  const wsDesc = document.getElementById('ws-desc');
+  const wsUrl = document.getElementById('ws-url');
+  const wsError = document.getElementById('ws-form-error');
+
+  function renderWorkspaces() {
+    wsGrid.textContent = '';
+    workspaces.forEach((ws) => {
+      const def = DEFAULT_WORKSPACES.find(d => d.id === ws.id);
+      const host = pinHost(ws.url);
+      // The hand-drawn icon belongs to the default site; another site gets its pin icon or a letter.
+      const path = host === pinHost(def.url) ? WS_ICONS[ws.id] : builtInIcon(host);
+
+      const card = document.createElement('a');
+      card.className = 'workspace-card';
+      card.href = ws.url;
+      card.title = ws.title + ' · ' + host;
+
+      const top = document.createElement('div');
+      top.className = 'workspace-card-top';
+      const icon = document.createElement('div');
+      icon.className = 'workspace-icon';
+      if (path) {
+        icon.innerHTML = '<svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg>';
+      } else {
+        const letter = document.createElement('span');
+        letter.className = 'workspace-letter';
+        letter.textContent = (ws.title[0] || '?').toUpperCase();
+        icon.appendChild(letter);
+      }
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'workspace-edit';
+      edit.title = 'Edit';
+      edit.setAttribute('aria-label', 'Edit ' + ws.title);
+      edit.innerHTML = PENCIL_SVG;
+      edit.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openWorkspaceForm(ws.id);
+      });
+      top.append(icon, edit);
+
+      const meta = document.createElement('div');
+      meta.className = 'workspace-meta';
+      const title = document.createElement('span');
+      title.className = 'workspace-title';
+      title.textContent = ws.title;
+      const desc = document.createElement('span');
+      desc.className = 'workspace-desc';
+      desc.textContent = ws.desc;
+      meta.append(title, desc);
+
+      card.append(top, meta);
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        triggerReaction('working', 3000);
+        setTimeout(() => { OnyxBridge.openUrl(ws.url); }, 140);
+      });
+      wsGrid.appendChild(card);
+    });
+  }
+
+  function openWorkspaceForm(id) {
+    const ws = workspaces.find(w => w.id === id);
+    if (!ws) return;
+    editingWorkspace = id;
+    wsName.value = ws.title;
+    wsDesc.value = ws.desc;
+    wsUrl.value = ws.url;
+    wsError.textContent = '';
+    wsForm.hidden = false;
+    wsForm.scrollIntoView({ block: 'nearest' });
+    wsName.focus();
+    wsName.select();
+  }
+  function closeWorkspaceForm() {
+    wsForm.hidden = true;
+    wsError.textContent = '';
+    editingWorkspace = null;
+  }
+  function replaceWorkspace(next) {
+    workspaces[workspaces.findIndex(w => w.id === next.id)] = next;
+    saveLayout();
+    closeWorkspaceForm();
+    renderWorkspaces();
+  }
+  wsForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = normalizePinURL(wsUrl.value);
+    const title = wsName.value.trim().slice(0, 40);
+    if (!title) { wsError.textContent = 'Enter a name'; wsName.focus(); return; }
+    if (!url) { wsError.textContent = 'Enter a web address, like github.com'; wsUrl.focus(); return; }
+    replaceWorkspace({ id: editingWorkspace, title, desc: wsDesc.value.trim().slice(0, 60), url });
+  });
+  document.getElementById('ws-reset').addEventListener('click', () => {
+    replaceWorkspace({ ...DEFAULT_WORKSPACES.find(d => d.id === editingWorkspace) });
+  });
+  document.getElementById('ws-cancel').addEventListener('click', closeWorkspaceForm);
+  wsForm.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeWorkspaceForm(); }
+  });
+
+  // Drag the Workspaces / News tabs to reorder them.
+  const deckPill = document.querySelector('.deck-segmented-pill');
+  function applyDeckOrder() {
+    deckOrder.forEach(k => deckPill.appendChild(deckPill.querySelector('[data-deck="' + k + '"]')));
+  }
+  deckPill.querySelectorAll('.deck-tab-btn').forEach((btn) => {
+    btn.draggable = true;
+    btn.addEventListener('dragstart', (e) => {
+      btn.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/x-onyx-deck', btn.dataset.deck);
+    });
+    btn.addEventListener('dragend', () => {
+      btn.classList.remove('dragging');
+      const next = Array.from(deckPill.querySelectorAll('.deck-tab-btn'), b => b.dataset.deck);
+      if (next.join() === deckOrder.join()) return;
+      deckOrder = next;
+      saveLayout();
+    });
+  });
+  deckPill.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const dragging = deckPill.querySelector('.dragging');
+    const over = e.target.closest('.deck-tab-btn');
+    if (!dragging || !over || over === dragging) return;
+    const r = over.getBoundingClientRect();
+    deckPill.insertBefore(dragging, e.clientX < r.left + r.width / 2 ? over : over.nextSibling);
+  });
+  deckPill.addEventListener('drop', (e) => e.preventDefault());
+
+  const initialLayout = localLayout();
+  if (initialLayout) { workspaces = initialLayout.workspaces; deckOrder = initialLayout.order; }
+  renderWorkspaces();
+  applyDeckOrder();
+
+  // Suggested-card clicks
+  document.querySelectorAll('.suggested-card').forEach((el) => {
     el.addEventListener('click', () => {
       const url = el.getAttribute('data-url');
       if (url) {
@@ -3616,7 +3806,8 @@
   window.addEventListener('keydown', (e) => {
     // Leave Cmd/Ctrl/Alt combos (e.g. Cmd+Shift+S) to the browser's menus.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (document.activeElement !== searchInput) {
+    // Typing in any field (search, pin and workspace forms) must not trigger the single-key shortcuts.
+    if (document.activeElement !== searchInput && !document.activeElement?.matches('input, textarea, select')) {
       if (e.key === '/' || e.key === 's') {
         e.preventDefault();
         searchInput.focus();
@@ -4232,7 +4423,6 @@
     const btnNews = document.getElementById('deck-btn-news');
     const viewWorkspaces = document.getElementById('deck-view-workspaces');
     const viewNews = document.getElementById('deck-view-news');
-    const hintWorkspaces = document.getElementById('deck-workspaces-hint');
     const metaNews = document.getElementById('deck-news-meta');
 
     if (mode === 'news') {
@@ -4244,7 +4434,6 @@
       viewWorkspaces?.classList.add('hidden');
       viewNews?.classList.remove('hidden');
 
-      if (hintWorkspaces) hintWorkspaces.style.display = 'none';
       if (metaNews) metaNews.style.display = 'flex';
 
       renderNews(currentNewsCategory);
@@ -4257,7 +4446,6 @@
       viewNews?.classList.add('hidden');
       viewWorkspaces?.classList.remove('hidden');
 
-      if (hintWorkspaces) hintWorkspaces.style.display = 'block';
       if (metaNews) metaNews.style.display = 'none';
     }
 

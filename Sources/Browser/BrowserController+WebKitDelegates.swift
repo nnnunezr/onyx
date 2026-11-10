@@ -73,6 +73,7 @@ extension BrowserController {
             if let pinsJS = startPagePinsScript() {
                 webView.evaluateJavaScript(pinsJS, completionHandler: nil)
             }
+            webView.evaluateJavaScript(startPageLayoutScript(), completionHandler: nil)
         }
         scheduleSessionSave()
         

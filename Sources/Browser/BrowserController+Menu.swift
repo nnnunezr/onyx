@@ -156,7 +156,7 @@ extension BrowserController {
     @objc func showAboutPanel() {
         let alert = NSAlert()
         alert.messageText = "Onyx"
-        alert.informativeText = "Version 1.0.0 (Native WebKit)\n\nUltra-low RAM browser engineered for instant search, tab management, and free Duck.ai research.\n\nPitch-black monochrome aesthetics."
+        alert.informativeText = "Version 1.1.0 (Native WebKit)\n\nUltra-low RAM browser engineered for instant search, tab management, and free Duck.ai research.\n\nPitch-black monochrome aesthetics."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Close")
         if let icon = NSApp.applicationIconImage {

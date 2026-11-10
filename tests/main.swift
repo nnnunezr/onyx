@@ -85,6 +85,25 @@ check(EP.decide(scheme: "spotify", handledByWebKit: false, isMainFrame: false, u
 check(EP.decide(scheme: "https", handledByWebKit: true, isMainFrame: true, userInitiated: true) == .notExternal, "https stays in WebKit")
 check(EP.decide(scheme: nil, handledByWebKit: false, isMainFrame: true, userInitiated: true) == .notExternal, "no scheme is not external")
 check(EP.decide(scheme: "applescript", handledByWebKit: false, isMainFrame: true, userInitiated: true) == .block, "applescript always blocked")
+// Start page layout: unknown tabs, bad addresses and non-layouts are rejected
+func layout(_ raw: Any?) -> [String: Any]? {
+    StartLayout.sanitizedJSON(raw).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+}
+let goodCard: [String: Any] = ["id": "research", "title": "  Mine ", "desc": "d", "url": "https://example.com/x"]
+let cleaned = layout(["order": ["news", "bogus", "news", "workspaces"], "workspaces": [goodCard]])
+check((cleaned?["order"] as? [String]) == ["news", "workspaces"], "layout keeps known tabs once, in order")
+check(((cleaned?["workspaces"] as? [[String: String]])?.first?["title"]) == "Mine", "layout trims the card title")
+let bad: [[String: Any]] = [
+    ["id": "a", "title": "x", "url": "javascript:alert(1)"], ["id": "b", "title": "x", "url": "file:///etc/hosts"],
+    ["id": "c", "title": "  ", "url": "https://example.com"], ["id": "", "title": "x", "url": "https://example.com"],
+    ["id": "d", "title": "x", "url": "https://"]
+]
+check(((layout(["order": [], "workspaces": bad])?["workspaces"] as? [Any])?.isEmpty) == true, "layout drops non-http, blank and idless cards")
+let longCard: [String: Any] = ["id": "e", "title": String(repeating: "a", count: 90), "desc": String(repeating: "b", count: 90), "url": "https://example.com"]
+let longOut = (layout(["workspaces": [longCard]])?["workspaces"] as? [[String: String]])?.first
+check(longOut?["title"]?.count == 40 && longOut?["desc"]?.count == 60, "layout caps title and subtitle length")
+check(((layout(["workspaces": Array(repeating: goodCard, count: 30)])?["workspaces"] as? [Any])?.count) == StartLayout.maxCards, "layout caps card count")
+check(StartLayout.sanitizedJSON("nope") == nil && StartLayout.sanitizedJSON(nil) == nil, "layout rejects non-dictionaries")
 d.removePersistentDomain(forName: suite)
 try? FileManager.default.removeItem(at: scratchRecovery)
 print(fails == 0 ? "ALL PASS" : "\(fails) FAILED")

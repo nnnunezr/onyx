@@ -104,6 +104,15 @@ extension BrowserController {
                 OnyxLog.persistence.error("could not encode start page pins")
             }
             
+        case "setStartLayout":
+            // Start page tab order and workspace cards. Validated again here, like the pins.
+            if let data = StartLayout.sanitizedJSON(dict["layout"]) {
+                defaults.set(data, forKey: "OnyxStartLayout")
+                OnyxLog.persistence.notice("saved start page layout")
+            } else {
+                OnyxLog.persistence.error("rejected malformed start page layout")
+            }
+            
         case "setStartup":
             if let mode = dict["mode"] as? String, ["startpage", "restore", "blank"].contains(mode) {
                 defaults.set(mode, forKey: "OnyxStartupBehavior")
@@ -179,6 +188,12 @@ extension BrowserController {
     func startPagePinsScript() -> String? {
         let json = UserDefaults.standard.data(forKey: "OnyxStartPins").flatMap { String(data: $0, encoding: .utf8) } ?? "null"
         return "if (window.setPins) window.setPins(\(json));"
+    }
+    
+    /// Same contract as the pins: always sent, null when nothing is saved.
+    func startPageLayoutScript() -> String {
+        let json = UserDefaults.standard.data(forKey: "OnyxStartLayout").flatMap { String(data: $0, encoding: .utf8) } ?? "null"
+        return "if (window.setStartLayout) window.setStartLayout(\(json));"
     }
     
     func startPageNewsScript() -> String {

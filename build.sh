@@ -48,7 +48,7 @@ cat <<EOF > "$CONTENTS/Info.plist"
         <string>MacOSX</string>
     </array>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleIconFile</key>
@@ -109,20 +109,24 @@ else
 fi
 codesign --force --deep -s "$SIGN_IDENTITY" "$APP_DIR"
 
-echo "==> Step 5: Syncing to ~/Applications (Spotlight & Dock accessible)..."
-mkdir -p "$HOME/Applications"
-rm -rf "$HOME/Applications/$APP_NAME.app"
-cp -R "$APP_DIR" "$HOME/Applications/$APP_NAME.app"
+# ONYX_NO_INSTALL=1 builds and signs the bundle in this folder only: the installed app (and a
+# running Onyx with its open tabs) is left alone, and the Dock is not restarted.
+if [ -z "${ONYX_NO_INSTALL:-}" ]; then
+    echo "==> Step 5: Syncing to ~/Applications (Spotlight & Dock accessible)..."
+    mkdir -p "$HOME/Applications"
+    rm -rf "$HOME/Applications/$APP_NAME.app"
+    cp -R "$APP_DIR" "$HOME/Applications/$APP_NAME.app"
 
-echo "==> Step 6: Refreshing macOS Dock and LaunchServices icon cache..."
-touch "$HOME/Applications/$APP_NAME.app"
-touch "$APP_DIR"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$HOME/Applications/$APP_NAME.app" 2>/dev/null || true
-killall Dock 2>/dev/null || true
+    echo "==> Step 6: Refreshing macOS Dock and LaunchServices icon cache..."
+    touch "$HOME/Applications/$APP_NAME.app"
+    touch "$APP_DIR"
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$HOME/Applications/$APP_NAME.app" 2>/dev/null || true
+    killall Dock 2>/dev/null || true
+fi
 
 echo "=========================================================="
 echo "  ONYX BUILD COMPLETE"
 echo "  Local bundle: $APP_DIR"
-echo "  Installed in: $HOME/Applications/$APP_NAME.app"
+if [ -z "${ONYX_NO_INSTALL:-}" ]; then echo "  Installed in: $HOME/Applications/$APP_NAME.app"; fi
 echo "  Launch with: open \"$APP_DIR\" or Spotlight 'Onyx'"
 echo "=========================================================="
