@@ -13,6 +13,7 @@ extension BrowserController {
     }
     
     func showDownloadsPopover() {
+        downloadsPopover?.close()
         downloadsButton.hasUnseenFinished = false
         
         let popover = NSPopover()
@@ -209,6 +210,7 @@ extension BrowserController {
         
         updateDownloadsState()
         startDownloadProgressTimer()
+        if downloadsPopover?.isShown == true { showDownloadsPopover() }   // the new row appears at once
     }
     
     func updateDownloadDestination(download: WKDownload, url: URL, filename: String) {
@@ -266,15 +268,27 @@ extension BrowserController {
             item.progressFraction = prog.fractionCompleted
             item.receivedBytes = prog.completedUnitCount
             item.totalBytes = prog.totalUnitCount
+            item.speed.add(bytes: prog.completedUnitCount, at: ProcessInfo.processInfo.systemUptime)
             totalFraction += prog.fractionCompleted
         }
+        refreshOpenDownloadRows()
         
         let avgFraction = totalFraction / Double(activeDownloads.count)
         downloadsButton.progress = avgFraction
         downloadsButton.toolTip = "Downloading... (\(Int(avgFraction * 100))%)"
     }
     
+    /// The popover's rows are built once when it opens; this makes them follow the downloads.
+    func refreshOpenDownloadRows() {
+        guard let popover = downloadsPopover, popover.isShown, let root = popover.contentViewController?.view else { return }
+        var pending = [root]
+        while let view = pending.popLast() {
+            if let row = view as? OnyxDownloadRowView { row.updateContent() } else { pending.append(contentsOf: view.subviews) }
+        }
+    }
+    
     func updateDownloadsState() {
+        refreshOpenDownloadRows()
         let isDownloading = !activeDownloads.isEmpty
         downloadsButton.isDownloading = isDownloading
         if !isDownloading && !downloadsButton.hasUnseenFinished {

@@ -8,6 +8,10 @@ CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 
+# Build id shown in About: the commit this was built from, "-dirty" when tracked files have uncommitted changes.
+BUILD_REV="$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo dev)"
+if [ -n "$(git -C "$DIR" status --porcelain --untracked-files=no 2>/dev/null)" ]; then BUILD_REV="$BUILD_REV-dirty"; fi
+
 echo "==> Step 1: Generating high-resolution Onyx AppIcon.icns..."
 swift "$DIR/generate_icon.swift"
 iconutil -c icns "$DIR/Onyx.iconset" -o "$DIR/AppIcon.icns"
@@ -48,9 +52,9 @@ cat <<EOF > "$CONTENTS/Info.plist"
         <string>MacOSX</string>
     </array>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.0</string>
+    <string>1.3.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$BUILD_REV</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>

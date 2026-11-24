@@ -1140,34 +1140,28 @@
         <div class="content-title">
           <span>About Onyx & System</span>
         </div>
-        <div class="content-desc">Ultra-low RAM native browser engineered for Apple Silicon macOS.</div>
+        <div class="content-desc">A native macOS browser built on WebKit.</div>
       </div>
 
       <div class="card">
         <div class="row-item">
           <div class="row-info">
             <div class="row-title">Version</div>
-            <div class="row-desc">Onyx 1.0.0 (Native WebKit · arm64 Apple Silicon)</div>
-          </div>
-          <div class="row-control">
-            <span style="font-size: 12px; color: var(--text-muted);">Up to date</span>
+            <div class="row-desc" id="app-version">Onyx</div>
           </div>
         </div>
 
         <div class="row-item">
           <div class="row-info">
             <div class="row-title">Rendering Engine</div>
-            <div class="row-desc">Apple WebKit 605.1.15 · Safari 18.3 Engine</div>
-          </div>
-          <div class="row-control">
-            <span style="font-size: 12px; color: var(--accent-green);">Metal GPU Accelerated</span>
+            <div class="row-desc">Apple WebKit, the system's own engine.</div>
           </div>
         </div>
 
         <div class="row-item">
           <div class="row-info">
-            <div class="row-title">Memory Footprint</div>
-            <div class="row-desc">Ultra-efficient process architecture consuming ~30-50 MB RAM at idle.</div>
+            <div class="row-title">Memory (Onyx app only)</div>
+            <div class="row-desc">Web pages run in separate WebKit processes and are not counted here.</div>
           </div>
           <div class="row-control">
             <span id="ram-usage" style="font-size: 12px; color: var(--accent-green); font-family: monospace;">–</span>
@@ -1403,6 +1397,8 @@
       }
     }
 
+    const version = document.getElementById('app-version');
+    if (version && data.appVersion) version.textContent = 'Onyx ' + data.appVersion;
     const ram = document.getElementById('ram-usage');
     if (ram && data.ramUsage) ram.textContent = data.ramUsage;
 

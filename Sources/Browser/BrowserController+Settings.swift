@@ -40,6 +40,7 @@ extension BrowserController {
             ]
         }
         
+        let residentMB = getResidentMemoryMB()
         let payload: [String: Any] = [
             "searchEngine": SearchEngines.current,
             "startup": startup,
@@ -51,7 +52,8 @@ extension BrowserController {
             "isDefaultBrowser": DefaultBrowser.isDefault,
             "profiles": profList,
             "activeProfileId": activeProfile.id,
-            "ramUsage": String(format: "%.1f MB", getResidentMemoryMB())
+            "appVersion": appVersionString,
+            "ramUsage": residentMB > 0 ? String(format: "%.1f MB", residentMB) : "–"
         ]
         
         guard let json = JS.literal(payload) else { return }
@@ -72,7 +74,13 @@ extension BrowserController {
         if kerr == KERN_SUCCESS {
             return Double(info.resident_size) / (1024.0 * 1024.0)
         }
-        return 38.4
+        return 0
+    }
+    
+    /// "1.2.0 (abc1234)": the release and the commit this build was made from (build.sh writes it).
+    var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
     }
     
     func handleSettingsMessage(_ dict: [String: Any], from webView: WKWebView?) {
@@ -103,6 +111,9 @@ extension BrowserController {
             } else {
                 OnyxLog.persistence.error("could not encode start page pins")
             }
+            
+        case "onboardingDone":
+            defaults.set(true, forKey: "OnyxOnboardingDone")
             
         case "setStartLayout":
             // Start page tab order and workspace cards. Validated again here, like the pins.
@@ -188,6 +199,12 @@ extension BrowserController {
     func startPagePinsScript() -> String? {
         let json = UserDefaults.standard.data(forKey: "OnyxStartPins").flatMap { String(data: $0, encoding: .utf8) } ?? "null"
         return "if (window.setPins) window.setPins(\(json));"
+    }
+    
+    /// Whether the first-run card was dismissed, and the current search engine for its picker.
+    func startPageOnboardingScript() -> String {
+        let done = UserDefaults.standard.bool(forKey: "OnyxOnboardingDone")
+        return "if (window.setOnboarding) window.setOnboarding(\(done), \(JS.string(SearchEngines.current)));"
     }
     
     /// Same contract as the pins: always sent, null when nothing is saved.

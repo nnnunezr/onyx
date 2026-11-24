@@ -155,7 +155,7 @@ extension BrowserController {
         suggestedTabsBtn = NavIconButton(iconName: "sparkles", tooltip: "AI Research Canvas (⌘⇧S)", target: self, action: #selector(showSuggestedTabsPopover))
         downloadsButton = DownloadsNavButton(target: self, action: #selector(toggleDownloadsPopover))
         passwordsButton = PasswordsNavButton(target: self, action: #selector(togglePasswordsPopover))
-        shieldButton = NavIconButton(iconName: "shield.checkerboard", tooltip: "Onyx Shield: Private & Fast (30 MB RAM)", target: self, action: #selector(showPrivacyReport))
+        shieldButton = NavIconButton(iconName: "shield.checkerboard", tooltip: "Onyx Shield: ad and tracker blocking", target: self, action: #selector(showPrivacyReport))
         
         extensionsStack = NSStackView(views: [suggestedTabsBtn, downloadsButton, passwordsButton, shieldButton])
         extensionsStack.translatesAutoresizingMaskIntoConstraints = false

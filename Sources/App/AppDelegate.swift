@@ -72,6 +72,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = controller
         let defaultBrowserItem = NSMenuItem(title: "Make Onyx Default Browser…", action: #selector(BrowserController.menuMakeDefaultBrowser), keyEquivalent: "")
         defaultBrowserItem.target = controller
+        let welcomeItem = NSMenuItem(title: "Show Welcome Card", action: #selector(BrowserController.menuShowWelcome), keyEquivalent: "")
+        welcomeItem.target = controller
         let passwordsItem = NSMenuItem(title: "Passwords & Vault...", action: #selector(BrowserController.menuTogglePasswords), keyEquivalent: "p")
         passwordsItem.keyEquivalentModifierMask = [.command, .shift]
         passwordsItem.target = controller
@@ -87,6 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(aboutItem)
         appMenu.addItem(settingsItem)
         appMenu.addItem(defaultBrowserItem)
+        appMenu.addItem(welcomeItem)
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(passwordsItem)
         appMenu.addItem(extensionsItem)

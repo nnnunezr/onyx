@@ -12,6 +12,7 @@ class OnyxDownloadItem: Identifiable {
     var totalBytes: Int64 = 0
     var receivedBytes: Int64 = 0
     var progressFraction: Double = 0.0
+    var speed = DownloadSpeed()
     var state: State = .downloading
     let startDate: Date = Date()
     var finishDate: Date?
@@ -251,7 +252,10 @@ class OnyxDownloadRowView: NSView {
     private let titleLabel = NSTextField()
     private let subLabel = NSTextField()
     private let progressBar = NSBox()
+    private let progressTrack = NSBox()
+    private let actionsStack = NSStackView()
     private var progressWidthConstraint: NSLayoutConstraint?
+    private var renderedState: OnyxDownloadItem.State?
     
     init(item: OnyxDownloadItem) {
         self.item = item
@@ -297,7 +301,6 @@ class OnyxDownloadRowView: NSView {
         subLabel.textColor = NSColor(white: 0.70, alpha: 1.0)
         addSubview(subLabel)
         
-        let progressTrack = NSBox()
         progressTrack.translatesAutoresizingMaskIntoConstraints = false
         progressTrack.boxType = .custom
         progressTrack.borderWidth = 0
@@ -315,22 +318,11 @@ class OnyxDownloadRowView: NSView {
         progressWidthConstraint = progressBar.widthAnchor.constraint(equalToConstant: 0)
         progressWidthConstraint?.isActive = true
         
-        let actionsStack = NSStackView()
         actionsStack.translatesAutoresizingMaskIntoConstraints = false
         actionsStack.orientation = .horizontal
         actionsStack.spacing = 4
         actionsStack.alignment = .centerY
         addSubview(actionsStack)
-        
-        if case .downloading = item.state {
-            let cancelBtn = NavIconButton(iconName: "xmark.circle", tooltip: "Cancel Download", target: self, action: #selector(cancelClicked))
-            actionsStack.addArrangedSubview(cancelBtn)
-        } else if case .completed = item.state {
-            let finderBtn = NavIconButton(iconName: "magnifyingglass", tooltip: "Show in Finder", target: self, action: #selector(finderClicked))
-            let openBtn = NavIconButton(iconName: "arrow.up.forward.app", tooltip: "Open File", target: self, action: #selector(openClicked))
-            actionsStack.addArrangedSubview(finderBtn)
-            actionsStack.addArrangedSubview(openBtn)
-        }
         
         updateContent()
         
@@ -367,30 +359,32 @@ class OnyxDownloadRowView: NSView {
             actionsStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             actionsStack.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
-        
-        if case .downloading = item.state {
-            progressTrack.isHidden = false
-        } else {
-            progressTrack.isHidden = true
-        }
     }
     
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     
+    /// Re-reads the item. Called when the row is built and on every progress tick while the
+    /// popover is open, so the text, the bar and the buttons follow the download.
     func updateContent() {
         titleLabel.stringValue = item.filename
+        if renderedState != item.state {
+            renderedState = item.state
+            renderActions()
+        }
+        progressTrack.isHidden = !(item.state == .downloading && item.totalBytes > 0)
         switch item.state {
         case .downloading:
             let formatter = ByteCountFormatter()
             formatter.countStyle = .file
             let rec = formatter.string(fromByteCount: item.receivedBytes)
+            let rate = item.speed.bytesPerSecond > 0 ? " • \(formatter.string(fromByteCount: Int64(item.speed.bytesPerSecond)))/s" : ""
             if item.totalBytes > 0 {
                 let tot = formatter.string(fromByteCount: item.totalBytes)
-                let pct = Int(item.progressFraction * 100.0)
-                subLabel.stringValue = "\(rec) of \(tot) (\(pct)%)"
-                progressWidthConstraint?.constant = CGFloat(item.progressFraction) * 130.0
+                let fraction = min(max(item.progressFraction, 0), 1)
+                subLabel.stringValue = "\(rec) of \(tot) (\(Int(fraction * 100.0))%)\(rate)"
+                setBarFraction(fraction)
             } else {
-                subLabel.stringValue = "\(rec) downloaded"
+                subLabel.stringValue = "\(rec) downloaded\(rate)"
             }
         case .completed:
             subLabel.stringValue = "\(item.formattedSize) • Ready"
@@ -401,6 +395,27 @@ class OnyxDownloadRowView: NSView {
         case .cancelled:
             subLabel.stringValue = "Cancelled"
             subLabel.textColor = NSColor(white: 0.40, alpha: 1.0)
+        }
+    }
+    
+    /// The bar is a share of the track's own width, so it fills the track exactly at 100%.
+    private func setBarFraction(_ fraction: Double) {
+        progressWidthConstraint?.isActive = false
+        let constraint = progressBar.widthAnchor.constraint(equalTo: progressTrack.widthAnchor, multiplier: CGFloat(max(fraction, 0.001)))
+        constraint.isActive = true
+        progressWidthConstraint = constraint
+    }
+    
+    private func renderActions() {
+        actionsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        switch item.state {
+        case .downloading:
+            actionsStack.addArrangedSubview(NavIconButton(iconName: "xmark.circle", tooltip: "Cancel Download", target: self, action: #selector(cancelClicked)))
+        case .completed:
+            actionsStack.addArrangedSubview(NavIconButton(iconName: "magnifyingglass", tooltip: "Show in Finder", target: self, action: #selector(finderClicked)))
+            actionsStack.addArrangedSubview(NavIconButton(iconName: "arrow.up.forward.app", tooltip: "Open File", target: self, action: #selector(openClicked)))
+        case .failed, .cancelled:
+            break
         }
     }
     

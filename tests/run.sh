@@ -10,6 +10,8 @@ swiftc -target arm64-apple-macos14.0 -sdk "$(xcrun --show-sdk-path)" \
     "$DIR/Sources/Core/ExternalAppPolicy.swift" \
     "$DIR/Sources/Core/StartLayout.swift" \
     "$DIR/Sources/Core/TabReorder.swift" \
+    "$DIR/Sources/Core/DownloadSpeed.swift" \
+    "$DIR/Sources/Core/SiteZoom.swift" \
     "$DIR/Sources/Support/ErrorPage.swift" \
     "$DIR/Sources/Passwords/PasswordVault.swift" \
     "$DIR/Sources/Support/JavaScript.swift" \

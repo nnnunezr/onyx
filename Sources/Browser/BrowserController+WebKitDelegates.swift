@@ -40,6 +40,7 @@ extension BrowserController {
     }
     
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        applySiteZoom(to: webView)
         // The guessed address loaded, so a later failure on this tab is not a typo to search.
         tabs.first(where: { $0.webView == webView })?.typedGuess = nil
         if webView == activeWebView, findBar != nil {
@@ -74,6 +75,7 @@ extension BrowserController {
                 webView.evaluateJavaScript(pinsJS, completionHandler: nil)
             }
             webView.evaluateJavaScript(startPageLayoutScript(), completionHandler: nil)
+            webView.evaluateJavaScript(startPageOnboardingScript(), completionHandler: nil)
         }
         scheduleSessionSave()
         
@@ -206,9 +208,10 @@ extension BrowserController {
     
     // MARK: - WKNavigationDelegate Policy Decisions & Download Handover
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences, decisionHandler: @escaping (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {
-        // ⌘-click on a link: open it in a background tab (no opener relationship needed)
+        // ⌘-click or middle-click on a link: open it in a background tab (no opener relationship needed).
+        // WebKit numbers the buttons 1 = left, 2 = right, 4 = middle.
         if navigationAction.navigationType == .linkActivated,
-           navigationAction.modifierFlags.contains(.command),
+           navigationAction.modifierFlags.contains(.command) || navigationAction.buttonNumber == 4,
            let url = navigationAction.request.url,
            ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
             createNewTab(url: url, switchTo: navigationAction.modifierFlags.contains(.shift))

@@ -76,15 +76,15 @@ extension BrowserController {
     }
     
     @objc func menuZoomIn() {
-        activeWebView.pageZoom = min(3.0, activeWebView.pageZoom + 0.1)
+        setZoom(activeWebView.pageZoom + 0.1, for: activeWebView)
     }
     
     @objc func menuZoomOut() {
-        activeWebView.pageZoom = max(0.5, activeWebView.pageZoom - 0.1)
+        setZoom(activeWebView.pageZoom - 0.1, for: activeWebView)
     }
     
     @objc func menuZoomReset() {
-        activeWebView.pageZoom = 1.0
+        setZoom(1.0, for: activeWebView)
     }
     
     @objc func menuGoBack() {
@@ -118,13 +118,25 @@ extension BrowserController {
     @objc func showPrivacyReport() {
         let alert = NSAlert()
         alert.messageText = "Onyx Shield"
-        alert.informativeText = "Active Content Blocker: Active\nEngine: Native WebKit + YouTube Ad Shield (~30 MB RAM)\n\n• Global Web Ad & Tracker Blocking: Enabled\n• YouTube Video Ad Skipping & Popup Elimination: Active\n• Anti-Adblock Enforcement Neutralizer: Active\n\nOnyx prevents tracking beacons, video pre-rolls/mid-rolls, and intrusive banners with zero layout shift."
+        alert.informativeText = isAdBlockEnabled
+            ? "Ad and tracker blocking: On\n\nBlocks a built-in list of third-party ad and tracker hosts, and skips YouTube video ads. Turn it off in Settings > Shield."
+            : "Ad and tracker blocking: Off\n\nTurn it on in Settings > Shield."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Done")
         if let icon = NSApp.applicationIconImage {
             alert.icon = icon
         }
         alert.runModal()
+    }
+    
+    /// App menu > "Show Welcome Card": brings the first-run card back on the start page.
+    @objc func menuShowWelcome() {
+        UserDefaults.standard.set(false, forKey: "OnyxOnboardingDone")
+        if isStartPageURL(activeTab.url) {
+            activeWebView.evaluateJavaScript(startPageOnboardingScript(), completionHandler: nil)
+        } else {
+            loadTabURL(tab: activeTab, url: startPageURL)
+        }
     }
     
     /// App menu > "Make Onyx Default Browser…". macOS shows its own confirmation dialog.
@@ -156,7 +168,7 @@ extension BrowserController {
     @objc func showAboutPanel() {
         let alert = NSAlert()
         alert.messageText = "Onyx"
-        alert.informativeText = "Version 1.2.0 (Native WebKit)\n\nUltra-low RAM browser engineered for instant search, tab management, and free Duck.ai research.\n\nPitch-black monochrome aesthetics."
+        alert.informativeText = "Version \(appVersionString)\n\nA native macOS browser built on WebKit, with workspaces, a password vault and ad blocking."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Close")
         if let icon = NSApp.applicationIconImage {

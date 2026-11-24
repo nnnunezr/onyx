@@ -1718,6 +1718,34 @@
     cursor: pointer;
   }
   .pin-field.wide { grid-column: 1 / -1; }
+  .onboarding {
+    width: 100%;
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .onboarding[hidden] { display: none; }
+  .onboarding-head, .onboarding-step {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .onboarding-head { font-size: 13px; font-weight: 600; color: var(--text); }
+  .onboarding-step { min-height: 32px; font-size: 12px; color: var(--text-muted); }
+  .onboarding-step select {
+    height: 32px;
+    padding: 0 var(--space-3);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+  }
   #ws-form { margin-top: var(--space-3); max-width: none; }
   .pin-btn.primary { background: #fff; color: #070709; border-color: #fff; }
   @media (max-width: 520px) {
@@ -1811,6 +1839,32 @@
     <button type="button" class="bang-chip" data-engine="k" title="Kagi Search">Kagi</button>
     <button type="button" class="bang-chip" data-engine="w" title="Wikipedia Encyclopedia">Wiki</button>
   </div>
+
+  <!-- First-run card: shown once (Onyx pushes the saved flag), dismissed with "Got it" -->
+  <section class="onboarding" id="onboarding" hidden aria-label="Welcome to Onyx">
+    <div class="onboarding-head">
+      <span>Welcome to Onyx</span>
+      <button type="button" class="pin-btn primary" id="onboarding-done">Got it</button>
+    </div>
+    <div class="onboarding-step">
+      <span>Open links from other apps in Onyx</span>
+      <button type="button" class="pin-btn" id="onboarding-default">Make default</button>
+    </div>
+    <div class="onboarding-step">
+      <label for="onboarding-engine">Search with</label>
+      <select id="onboarding-engine">
+        <option value="duckduckgo">DuckDuckGo</option>
+        <option value="google">Google</option>
+        <option value="brave">Brave Search</option>
+        <option value="perplexity">Perplexity</option>
+        <option value="kagi">Kagi</option>
+        <option value="bing">Bing</option>
+      </select>
+    </div>
+    <div class="onboarding-step">
+      <span>Make it yours: the pencil on a card edits it, the Workspaces and News tabs drag, ⌘T opens a tab.</span>
+    </div>
+  </section>
 
   <!-- Apple-Crafted Deck Container (Workspaces & Live News) -->
   <div class="deck-section fade-in delay-2">
@@ -3752,6 +3806,23 @@
   document.getElementById('ws-cancel').addEventListener('click', closeWorkspaceForm);
   wsForm.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.stopPropagation(); closeWorkspaceForm(); }
+  });
+
+  // First-run card. Onyx (macOS) pushes whether it was already dismissed; with no native push it stays hidden.
+  const onboarding = document.getElementById('onboarding');
+  const onboardingEngine = document.getElementById('onboarding-engine');
+  function postSettings(body) {
+    if (OnyxBridge.isMac && window.webkit.messageHandlers.onyxSettings) window.webkit.messageHandlers.onyxSettings.postMessage(body);
+  }
+  window.setOnboarding = function(done, engine) {
+    if (engine) onboardingEngine.value = engine;
+    onboarding.hidden = !!done;
+  };
+  document.getElementById('onboarding-default').addEventListener('click', () => postSettings({ action: 'makeDefaultBrowser' }));
+  onboardingEngine.addEventListener('change', () => postSettings({ action: 'setSearchEngine', engine: onboardingEngine.value }));
+  document.getElementById('onboarding-done').addEventListener('click', () => {
+    onboarding.hidden = true;
+    postSettings({ action: 'onboardingDone' });
   });
 
   // Drag the Workspaces / News tabs to reorder them.
